@@ -1,9 +1,0 @@
-usage: run_model.py [-h] [--task TASK] [--model MODEL] [--dataset DATASET]
-                    [--config_file CONFIG_FILE] [--saved_model SAVED_MODEL]
-                    [--train TRAIN] [--exp_id EXP_ID] [--seed SEED]
-                    [--resume RESUME] [--gpu GPU] [--gpu_id GPU_ID]
-                    [--train_rate TRAIN_RATE] [--eval_rate EVAL_RATE]
-                    [--batch_size BATCH_SIZE] [--learning_rate LEARNING_RATE]
-                    [--max_epoch MAX_EPOCH] [--dataset_class DATASET_CLASS]
-                    [--executor EXECUTOR] [--evaluator EVALUATOR]
-run_model.py: error: unrecognized arguments: –resume auto
