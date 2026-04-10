@@ -1,0 +1,121 @@
+2026-04-10 11:17:37,555 - INFO - Log directory: ./libcity/log
+2026-04-10 11:17:37,556 - INFO - Begin pipeline, task=traffic_state_pred, model_name=MCSTMamba, dataset_name=PEMSD4, exp_id=exp002, epoch=0
+2026-04-10 11:17:37,556 - INFO - {'task': 'traffic_state_pred', 'model': 'MCSTMamba', 'dataset': 'PEMSD4', 'saved_model': True, 'train': True, 'exp_id': 'exp002', 'seed': 0, 'optimized': True, 'gradient_accumulation_steps': 2, 'fp16': True, 'dataset_class': 'TrafficStatePointDataset', 'executor': 'TrafficStateExecutor', 'evaluator': 'TrafficStateEvaluator', 'd_model': 96, 'd_state': 96, 'd_conv': 4, 'expand': 2, 'max_epoch': 300, 'learner': 'adam', 'learning_rate': 0.001, 'lr_decay': True, 'lr_scheduler': 'cosineannealinglr', 'input_window': 12, 'output_window': 12, 'early_stop': True, 'patience': 15, 'weight_decay': 0.0001, 'input_embedding_dim': 24, 'tod_embedding_dim': 24, 'dow_embedding_dim': 24, 'spatial_embedding_dim': 16, 'adaptive_embedding_dim': 80, 'add_time_in_day': True, 'add_day_in_week': True, 'steps_per_day': 288, 'dropout': 0.1, 'batch_size': 200, 'num_workers': 8, 'pin_memory': True, 'gpu': True, 'cache_dataset': True, 'pad_with_last_sample': True, 'train_rate': 0.7, 'eval_rate': 0.1, 'scaler': 'none', 'load_external': False, 'normal_external': False, 'ext_scaler': 'none', 'robustness_test': False, 'noise_type': 'gaussian', 'disturb_rate': 0.5, 'noise_mean': [5], 'noise_SD': [10], 'gpu_id': 0, 'train_loss': 'none', 'epoch': 0, 'lr_epsilon': 1e-08, 'lr_beta1': 0.9, 'lr_beta2': 0.999, 'lr_alpha': 0.99, 'lr_momentum': 0, 'lr_decay_ratio': 0.1, 'steps': [5, 20, 40, 70], 'step_size': 10, 'lr_T_max': 30, 'lr_eta_min': 0, 'lr_patience': 10, 'lr_threshold': 0.0001, 'clip_grad_norm': False, 'max_grad_norm': 1.0, 'use_early_stop': False, 'log_level': 'INFO', 'log_every': 1, 'load_best_epoch': True, 'hyper_tune': False, 'metrics': ['MAE', 'MAPE', 'MSE', 'RMSE', 'masked_MAE', 'masked_MAPE', 'masked_MSE', 'masked_RMSE', 'R2', 'EVAR'], 'evaluator_mode': 'single', 'save_mode': ['csv'], 'geo': {'including_types': ['Point'], 'Point': {}}, 'rel': {'including_types': ['geo'], 'geo': {'cost': 'num'}}, 'dyna': {'including_types': ['state'], 'state': {'entity_id': 'geo_id', 'traffic_flow': 'num', 'traffic_occupancy': 'num', 'traffic_speed': 'num'}}, 'data_col': ['traffic_flow', 'traffic_occupancy', 'traffic_speed'], 'weight_col': 'cost', 'data_files': ['PEMSD4'], 'geo_file': 'PEMSD4', 'rel_file': 'PEMSD4', 'output_dim': 3, 'time_intervals': 300, 'init_weight_inf_or_zero': 'zero', 'set_weight_link_or_dist': 'link', 'calculate_weight_adj': False, 'weight_adj_epsilon': 0.1, 'device': device(type='cuda', index=0)}
+2026-04-10 11:17:37,563 - INFO - Loaded file PEMSD4.geo, num_nodes=307
+2026-04-10 11:17:37,565 - INFO - set_weight_link_or_dist: link
+2026-04-10 11:17:37,566 - INFO - init_weight_inf_or_zero: zero
+2026-04-10 11:17:37,568 - INFO - Loaded file PEMSD4.rel, shape=(307, 307)
+2026-04-10 11:17:37,568 - INFO - Loading ./libcity/cache/dataset_cache/point_based_PEMSD4_12_12_0.7_0.1_none_200_False_True_True_True.npz
+2026-04-10 11:17:48,684 - INFO - train	x: (11878, 12, 307, 3), y: (11878, 12, 307, 3)
+2026-04-10 11:17:48,685 - INFO - eval	x: (1697, 12, 307, 3), y: (1697, 12, 307, 3)
+2026-04-10 11:17:48,685 - INFO - test	x: (3394, 12, 307, 3), y: (3394, 12, 307, 3)
+2026-04-10 11:17:48,685 - INFO - NoneScaler
+2026-04-10 11:17:48,685 - INFO - NoneScaler
+2026-04-10 11:17:52,660 - INFO - Building simplified MCSTMamba model with just two Mamba blocks
+2026-04-10 11:17:52,666 - INFO - Simplified MCSTMamba model configured for device: cuda:0
+2026-04-10 11:17:52,843 - INFO - MCSTMamba(
+  (input_proj): Linear(in_features=3, out_features=24, bias=True)
+  (tod_embedding): Embedding(288, 24)
+  (dow_embedding): Embedding(7, 24)
+  (mamba_input_proj): Linear(in_features=168, out_features=96, bias=True)
+  (temporal_block): SimpleMambaBlock(
+    (layer_norm): LayerNorm((96,), eps=1e-05, elementwise_affine=True)
+    (mamba): Mamba(
+      (in_proj): Linear(in_features=96, out_features=384, bias=False)
+      (conv1d): Conv1d(192, 192, kernel_size=(4,), stride=(1,), padding=(3,), groups=192)
+      (act): SiLU()
+      (x_proj): Linear(in_features=192, out_features=198, bias=False)
+      (dt_proj): Linear(in_features=6, out_features=192, bias=True)
+      (out_proj): Linear(in_features=192, out_features=96, bias=False)
+    )
+    (dropout): Dropout(p=0.1, inplace=False)
+    (feed_forward): Sequential(
+      (0): Linear(in_features=96, out_features=384, bias=True)
+      (1): GELU(approximate='none')
+      (2): Dropout(p=0.1, inplace=False)
+      (3): Linear(in_features=384, out_features=96, bias=True)
+    )
+    (ff_norm): LayerNorm((96,), eps=1e-05, elementwise_affine=True)
+    (ff_dropout): Dropout(p=0.1, inplace=False)
+  )
+  (spatial_block): SimpleMambaBlock(
+    (layer_norm): LayerNorm((96,), eps=1e-05, elementwise_affine=True)
+    (mamba): Mamba(
+      (in_proj): Linear(in_features=96, out_features=384, bias=False)
+      (conv1d): Conv1d(192, 192, kernel_size=(4,), stride=(1,), padding=(3,), groups=192)
+      (act): SiLU()
+      (x_proj): Linear(in_features=192, out_features=198, bias=False)
+      (dt_proj): Linear(in_features=6, out_features=192, bias=True)
+      (out_proj): Linear(in_features=192, out_features=96, bias=False)
+    )
+    (dropout): Dropout(p=0.1, inplace=False)
+    (feed_forward): Sequential(
+      (0): Linear(in_features=96, out_features=384, bias=True)
+      (1): GELU(approximate='none')
+      (2): Dropout(p=0.1, inplace=False)
+      (3): Linear(in_features=384, out_features=96, bias=True)
+    )
+    (ff_norm): LayerNorm((96,), eps=1e-05, elementwise_affine=True)
+    (ff_dropout): Dropout(p=0.1, inplace=False)
+  )
+  (output_proj): Linear(in_features=96, out_features=3, bias=True)
+  (final_layer_norm): LayerNorm((96,), eps=1e-05, elementwise_affine=True)
+)
+2026-04-10 11:17:52,844 - INFO - spatial_embedding	torch.Size([307, 16])	cuda:0	True
+2026-04-10 11:17:52,844 - INFO - adaptive_embedding	torch.Size([12, 307, 80])	cuda:0	True
+2026-04-10 11:17:52,844 - INFO - combine_weights	torch.Size([2, 96])	cuda:0	True
+2026-04-10 11:17:52,844 - INFO - input_proj.weight	torch.Size([24, 3])	cuda:0	True
+2026-04-10 11:17:52,844 - INFO - input_proj.bias	torch.Size([24])	cuda:0	True
+2026-04-10 11:17:52,844 - INFO - tod_embedding.weight	torch.Size([288, 24])	cuda:0	True
+2026-04-10 11:17:52,844 - INFO - dow_embedding.weight	torch.Size([7, 24])	cuda:0	True
+2026-04-10 11:17:52,844 - INFO - mamba_input_proj.weight	torch.Size([96, 168])	cuda:0	True
+2026-04-10 11:17:52,844 - INFO - mamba_input_proj.bias	torch.Size([96])	cuda:0	True
+2026-04-10 11:17:52,844 - INFO - temporal_block.layer_norm.weight	torch.Size([96])	cuda:0	True
+2026-04-10 11:17:52,844 - INFO - temporal_block.layer_norm.bias	torch.Size([96])	cuda:0	True
+2026-04-10 11:17:52,844 - INFO - temporal_block.mamba.A_log	torch.Size([192, 96])	cuda:0	True
+2026-04-10 11:17:52,844 - INFO - temporal_block.mamba.D	torch.Size([192])	cuda:0	True
+2026-04-10 11:17:52,844 - INFO - temporal_block.mamba.in_proj.weight	torch.Size([384, 96])	cuda:0	True
+2026-04-10 11:17:52,844 - INFO - temporal_block.mamba.conv1d.weight	torch.Size([192, 1, 4])	cuda:0	True
+2026-04-10 11:17:52,844 - INFO - temporal_block.mamba.conv1d.bias	torch.Size([192])	cuda:0	True
+2026-04-10 11:17:52,844 - INFO - temporal_block.mamba.x_proj.weight	torch.Size([198, 192])	cuda:0	True
+2026-04-10 11:17:52,844 - INFO - temporal_block.mamba.dt_proj.weight	torch.Size([192, 6])	cuda:0	True
+2026-04-10 11:17:52,845 - INFO - temporal_block.mamba.dt_proj.bias	torch.Size([192])	cuda:0	True
+2026-04-10 11:17:52,845 - INFO - temporal_block.mamba.out_proj.weight	torch.Size([96, 192])	cuda:0	True
+2026-04-10 11:17:52,845 - INFO - temporal_block.feed_forward.0.weight	torch.Size([384, 96])	cuda:0	True
+2026-04-10 11:17:52,845 - INFO - temporal_block.feed_forward.0.bias	torch.Size([384])	cuda:0	True
+2026-04-10 11:17:52,845 - INFO - temporal_block.feed_forward.3.weight	torch.Size([96, 384])	cuda:0	True
+2026-04-10 11:17:52,845 - INFO - temporal_block.feed_forward.3.bias	torch.Size([96])	cuda:0	True
+2026-04-10 11:17:52,845 - INFO - temporal_block.ff_norm.weight	torch.Size([96])	cuda:0	True
+2026-04-10 11:17:52,845 - INFO - temporal_block.ff_norm.bias	torch.Size([96])	cuda:0	True
+2026-04-10 11:17:52,845 - INFO - spatial_block.layer_norm.weight	torch.Size([96])	cuda:0	True
+2026-04-10 11:17:52,845 - INFO - spatial_block.layer_norm.bias	torch.Size([96])	cuda:0	True
+2026-04-10 11:17:52,845 - INFO - spatial_block.mamba.A_log	torch.Size([192, 96])	cuda:0	True
+2026-04-10 11:17:52,845 - INFO - spatial_block.mamba.D	torch.Size([192])	cuda:0	True
+2026-04-10 11:17:52,845 - INFO - spatial_block.mamba.in_proj.weight	torch.Size([384, 96])	cuda:0	True
+2026-04-10 11:17:52,845 - INFO - spatial_block.mamba.conv1d.weight	torch.Size([192, 1, 4])	cuda:0	True
+2026-04-10 11:17:52,845 - INFO - spatial_block.mamba.conv1d.bias	torch.Size([192])	cuda:0	True
+2026-04-10 11:17:52,845 - INFO - spatial_block.mamba.x_proj.weight	torch.Size([198, 192])	cuda:0	True
+2026-04-10 11:17:52,845 - INFO - spatial_block.mamba.dt_proj.weight	torch.Size([192, 6])	cuda:0	True
+2026-04-10 11:17:52,845 - INFO - spatial_block.mamba.dt_proj.bias	torch.Size([192])	cuda:0	True
+2026-04-10 11:17:52,845 - INFO - spatial_block.mamba.out_proj.weight	torch.Size([96, 192])	cuda:0	True
+2026-04-10 11:17:52,845 - INFO - spatial_block.feed_forward.0.weight	torch.Size([384, 96])	cuda:0	True
+2026-04-10 11:17:52,845 - INFO - spatial_block.feed_forward.0.bias	torch.Size([384])	cuda:0	True
+2026-04-10 11:17:52,845 - INFO - spatial_block.feed_forward.3.weight	torch.Size([96, 384])	cuda:0	True
+2026-04-10 11:17:52,845 - INFO - spatial_block.feed_forward.3.bias	torch.Size([96])	cuda:0	True
+2026-04-10 11:17:52,846 - INFO - spatial_block.ff_norm.weight	torch.Size([96])	cuda:0	True
+2026-04-10 11:17:52,846 - INFO - spatial_block.ff_norm.bias	torch.Size([96])	cuda:0	True
+2026-04-10 11:17:52,846 - INFO - output_proj.weight	torch.Size([3, 96])	cuda:0	True
+2026-04-10 11:17:52,846 - INFO - output_proj.bias	torch.Size([3])	cuda:0	True
+2026-04-10 11:17:52,846 - INFO - final_layer_norm.weight	torch.Size([96])	cuda:0	True
+2026-04-10 11:17:52,846 - INFO - final_layer_norm.bias	torch.Size([96])	cuda:0	True
+2026-04-10 11:17:52,846 - INFO - Total parameter numbers: 701371
+2026-04-10 11:17:52,846 - INFO - You select `adam` optimizer.
+2026-04-10 11:17:52,846 - INFO - You select `cosineannealinglr` lr_scheduler.
+2026-04-10 11:17:52,846 - WARNING - Received none train loss func and will use the loss func defined in the model.
+2026-04-10 11:17:52,846 - INFO - Start training ...
+2026-04-10 11:17:52,846 - INFO - num_batches:60
+2026-04-10 11:24:22,055 - INFO - epoch complete!
+2026-04-10 11:24:22,088 - INFO - evaluating now!
+2026-04-10 11:24:50,130 - INFO - Epoch [0/300] train_loss: 87.9611, val_loss: 86.8656, lr: 0.000997, 417.28s
+2026-04-10 11:24:50,153 - INFO - Saved model at 0
+2026-04-10 11:24:50,153 - INFO - Val loss decrease from inf to 86.8656, saving to ./libcity/cache/exp002/model_cache/MCSTMamba_PEMSD4_epoch0.tar

@@ -47,7 +47,7 @@ class SimpleMambaBlock(nn.Module):
         return x
 
 
-class MCSTMamba(AbstractTrafficStateModel):
+class MCSTMamba_optimized(AbstractTrafficStateModel):
     def __init__(self, config, data_feature):
         super().__init__(config, data_feature)
         # Get data features first to ensure num_nodes is defined
