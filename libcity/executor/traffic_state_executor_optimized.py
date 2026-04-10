@@ -51,25 +51,73 @@ class TrafficStateExecutorOptimized(TrafficStateExecutor):
             torch.backends.cuda.matmul.allow_tf32 = True
             torch.backends.cudnn.allow_tf32 = True
             self._logger.info('Enabled TF32 for faster training on Ampere GPUs')
+        
+        # ========== PEMSD4 小数据集 GPU 预加载缓存 ==========
+        self.gpu_train_data = None  # 预加载的训练数据列表
+        self.gpu_valid_data = None  # 预加载的验证数据列表
+        self._logger.info("Executor 已初始化 GPU 数据预加载功能（PEMSD4 专用）")
+
+
+    def preload_to_gpu(self, dataloader, data_type='train'):
+        """
+        将 DataLoader 数据全量预加载到 GPU 显存
+        适用于 PEMSD4 等小数据集（307节点，11K样本，约120MB显存）
+        """
+        if data_type == 'train' and self.gpu_train_data is not None:
+            return  # 已预加载，跳过
+        if data_type == 'valid' and self.gpu_valid_data is not None:
+            return
+            
+        self._logger.info(f"PEMSD4 数据集较小，正在预加载 {data_type} 数据到 GPU 显存...")
+        start_time = time.time()
+        
+        gpu_data = []
+        for batch_idx, batch in enumerate(dataloader):
+            batch.to_tensor(self.device)
+            gpu_data.append(batch)
+            if (batch_idx + 1) % 10 == 0:
+                self._logger.info(f"  已预加载 {batch_idx + 1} batches...")
+        
+        elapsed = time.time() - start_time
+        self._logger.info(f"预加载完成: {len(gpu_data)} batches ({elapsed:.2f}s)")
+        
+        if data_type == 'train':
+            self.gpu_train_data = gpu_data
+        else:
+            self.gpu_valid_data = gpu_data
+
 
     def _train_epoch(self, train_dataloader, epoch_idx, loss_func=None):
         """
         Optimized training epoch with gradient accumulation and mixed precision
+        针对 PEMSD4：首次调用时预加载全量数据到 GPU，后续 epoch 零延迟读取
         """
         self.model.train()
         loss_func = loss_func if loss_func is not None else self.model.calculate_loss
         losses = []
         
-        # Zero gradients at the beginning
-        self.optimizer.zero_grad(set_to_none=True)  # More efficient than zero_grad()
+        # ========== PEMSD4 懒加载逻辑 ==========
+        if self.gpu_train_data is None:
+            self.preload_to_gpu(train_dataloader, 'train')
         
-        for batch_idx, batch in enumerate(train_dataloader):
+        # 使用预加载的 GPU 数据（零拷贝，无需 DataLoader）
+        data_source = self.gpu_train_data if self.gpu_train_data is not None else train_dataloader
+        
+        # Zero gradients at the beginning
+        self.optimizer.zero_grad(set_to_none=True)
+        
+        for batch_idx, batch in enumerate(data_source):
+            # 预加载数据已在 GPU，跳过 to_tensor；否则需要传输
+            if self.gpu_train_data is None:
+                with get_autocast_context(self.fp16):
+                    batch.to_tensor(self.device)
+            
             # Determine if we should update weights
             is_update_step = (batch_idx + 1) % self.gradient_accumulation_steps == 0
             
             # Use autocast for mixed precision
             with get_autocast_context(self.fp16):
-                batch.to_tensor(self.device)
+                # batch.to_tensor(self.device)  # 已注释：预加载数据已在 GPU
                 loss = loss_func(batch)
                 
                 # Normalize loss by accumulation steps
@@ -113,15 +161,27 @@ class TrafficStateExecutorOptimized(TrafficStateExecutor):
     def _valid_epoch(self, eval_dataloader, epoch_idx, loss_func=None):
         """
         Optimized validation epoch with mixed precision inference
+        针对 PEMSD4：预加载验证数据到 GPU
         """
+        # 预加载验证数据（首次调用）
+        if self.gpu_valid_data is None:
+            self.preload_to_gpu(eval_dataloader, 'valid')
+            
+        data_source = self.gpu_valid_data if self.gpu_valid_data is not None else eval_dataloader
+        
         with torch.no_grad():
             self.model.eval()
             loss_func = loss_func if loss_func is not None else self.model.calculate_loss
             losses = []
-            for batch in eval_dataloader:
-                # Use autocast for mixed precision inference (faster on Ampere GPUs)
+            
+            for batch in data_source:
+                # 预加载数据已在 GPU，跳过 to_tensor；否则需要传输
+                if self.gpu_valid_data is None:
+                    with get_autocast_context(self.fp16):
+                        batch.to_tensor(self.device)
+                
+                # Use autocast for mixed precision inference
                 with get_autocast_context(self.fp16):
-                    batch.to_tensor(self.device)
                     loss = loss_func(batch)
                 
                 self._logger.debug(loss.item())

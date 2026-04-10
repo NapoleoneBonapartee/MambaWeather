@@ -129,3 +129,83 @@
 2026-04-10 14:53:54,184 - INFO - Epoch [1/300] train_loss: 84.9915, val_loss: 84.7773, lr: 0.000989, 165.51s
 2026-04-10 14:53:54,204 - INFO - Saved model at 1
 2026-04-10 14:53:54,205 - INFO - Val loss decrease from 88.6709 to 84.7773, saving to ./libcity/cache/exp001/model_cache/MCSTMamba_optimized_PEMSD4_epoch1.tar
+2026-04-10 14:56:23,691 - INFO - epoch complete!
+2026-04-10 14:56:23,692 - INFO - evaluating now!
+2026-04-10 14:56:40,098 - INFO - Epoch [2/300] train_loss: 80.9920, val_loss: 80.7255, lr: 0.000976, 165.89s
+2026-04-10 14:56:40,156 - INFO - Saved model at 2
+2026-04-10 14:56:40,157 - INFO - Val loss decrease from 84.7773 to 80.7255, saving to ./libcity/cache/exp001/model_cache/MCSTMamba_optimized_PEMSD4_epoch2.tar
+2026-04-10 14:59:08,788 - INFO - epoch complete!
+2026-04-10 14:59:08,789 - INFO - evaluating now!
+2026-04-10 14:59:25,153 - INFO - Epoch [3/300] train_loss: 76.8373, val_loss: 76.5717, lr: 0.000957, 165.00s
+2026-04-10 14:59:25,185 - INFO - Saved model at 3
+2026-04-10 14:59:25,186 - INFO - Val loss decrease from 80.7255 to 76.5717, saving to ./libcity/cache/exp001/model_cache/MCSTMamba_optimized_PEMSD4_epoch3.tar
+2026-04-10 15:01:53,315 - INFO - epoch complete!
+2026-04-10 15:01:53,315 - INFO - evaluating now!
+2026-04-10 15:02:09,498 - INFO - Epoch [4/300] train_loss: 72.7744, val_loss: 72.6979, lr: 0.000933, 164.31s
+2026-04-10 15:02:09,527 - INFO - Saved model at 4
+2026-04-10 15:02:09,528 - INFO - Val loss decrease from 76.5717 to 72.6979, saving to ./libcity/cache/exp001/model_cache/MCSTMamba_optimized_PEMSD4_epoch4.tar
+2026-04-10 15:04:36,849 - INFO - epoch complete!
+2026-04-10 15:04:36,849 - INFO - evaluating now!
+2026-04-10 15:04:52,947 - INFO - Epoch [5/300] train_loss: 68.7784, val_loss: 68.6736, lr: 0.000905, 163.42s
+2026-04-10 15:04:53,070 - INFO - Saved model at 5
+2026-04-10 15:04:53,070 - INFO - Val loss decrease from 72.6979 to 68.6736, saving to ./libcity/cache/exp001/model_cache/MCSTMamba_optimized_PEMSD4_epoch5.tar
+2026-04-10 15:07:21,023 - INFO - epoch complete!
+2026-04-10 15:07:21,023 - INFO - evaluating now!
+2026-04-10 15:07:37,524 - INFO - Epoch [6/300] train_loss: 64.4788, val_loss: 64.1749, lr: 0.000872, 164.45s
+2026-04-10 15:07:37,557 - INFO - Saved model at 6
+2026-04-10 15:07:37,557 - INFO - Val loss decrease from 68.6736 to 64.1749, saving to ./libcity/cache/exp001/model_cache/MCSTMamba_optimized_PEMSD4_epoch6.tar
+2026-04-10 15:10:06,041 - INFO - epoch complete!
+2026-04-10 15:10:06,042 - INFO - evaluating now!
+2026-04-10 15:10:22,523 - INFO - Epoch [7/300] train_loss: 59.7851, val_loss: 59.7046, lr: 0.000835, 164.96s
+2026-04-10 15:10:22,553 - INFO - Saved model at 7
+2026-04-10 15:10:22,553 - INFO - Val loss decrease from 64.1749 to 59.7046, saving to ./libcity/cache/exp001/model_cache/MCSTMamba_optimized_PEMSD4_epoch7.tar
+2026-04-10 15:12:50,915 - INFO - epoch complete!
+2026-04-10 15:12:50,915 - INFO - evaluating now!
+2026-04-10 15:13:06,986 - INFO - Epoch [8/300] train_loss: 55.9429, val_loss: 56.7586, lr: 0.000794, 164.43s
+2026-04-10 15:13:07,110 - INFO - Saved model at 8
+2026-04-10 15:13:07,110 - INFO - Val loss decrease from 59.7046 to 56.7586, saving to ./libcity/cache/exp001/model_cache/MCSTMamba_optimized_PEMSD4_epoch8.tar
+2026-04-10 15:15:33,700 - INFO - epoch complete!
+2026-04-10 15:15:33,701 - INFO - evaluating now!
+2026-04-10 15:15:49,821 - INFO - Epoch [9/300] train_loss: 53.6767, val_loss: 55.0286, lr: 0.000750, 162.71s
+2026-04-10 15:15:49,838 - INFO - Saved model at 9
+2026-04-10 15:15:49,838 - INFO - Val loss decrease from 56.7586 to 55.0286, saving to ./libcity/cache/exp001/model_cache/MCSTMamba_optimized_PEMSD4_epoch9.tar
+2026-04-10 15:18:17,640 - INFO - epoch complete!
+2026-04-10 15:18:17,649 - INFO - evaluating now!
+2026-04-10 15:18:33,837 - INFO - Epoch [10/300] train_loss: 52.2434, val_loss: 53.7480, lr: 0.000703, 164.00s
+2026-04-10 15:18:33,855 - INFO - Saved model at 10
+2026-04-10 15:18:33,855 - INFO - Val loss decrease from 55.0286 to 53.7480, saving to ./libcity/cache/exp001/model_cache/MCSTMamba_optimized_PEMSD4_epoch10.tar
+2026-04-10 15:21:01,584 - INFO - epoch complete!
+2026-04-10 15:21:01,584 - INFO - evaluating now!
+2026-04-10 15:21:17,518 - INFO - Epoch [11/300] train_loss: 50.8338, val_loss: 52.3175, lr: 0.000655, 163.66s
+2026-04-10 15:21:17,535 - INFO - Saved model at 11
+2026-04-10 15:21:17,536 - INFO - Val loss decrease from 53.7480 to 52.3175, saving to ./libcity/cache/exp001/model_cache/MCSTMamba_optimized_PEMSD4_epoch11.tar
+2026-04-10 15:23:44,052 - INFO - epoch complete!
+2026-04-10 15:23:44,052 - INFO - evaluating now!
+2026-04-10 15:23:59,906 - INFO - Epoch [12/300] train_loss: 49.4427, val_loss: 50.9580, lr: 0.000604, 162.37s
+2026-04-10 15:23:59,923 - INFO - Saved model at 12
+2026-04-10 15:23:59,923 - INFO - Val loss decrease from 52.3175 to 50.9580, saving to ./libcity/cache/exp001/model_cache/MCSTMamba_optimized_PEMSD4_epoch12.tar
+2026-04-10 15:26:40,990 - INFO - epoch complete!
+2026-04-10 15:26:40,990 - INFO - evaluating now!
+2026-04-10 15:26:56,840 - INFO - Epoch [13/300] train_loss: 48.1774, val_loss: 49.8231, lr: 0.000552, 176.92s
+2026-04-10 15:26:56,859 - INFO - Saved model at 13
+2026-04-10 15:26:56,859 - INFO - Val loss decrease from 50.9580 to 49.8231, saving to ./libcity/cache/exp001/model_cache/MCSTMamba_optimized_PEMSD4_epoch13.tar
+2026-04-10 15:29:23,212 - INFO - epoch complete!
+2026-04-10 15:29:23,212 - INFO - evaluating now!
+2026-04-10 15:29:39,272 - INFO - Epoch [14/300] train_loss: 47.1304, val_loss: 48.8141, lr: 0.000500, 162.41s
+2026-04-10 15:29:39,290 - INFO - Saved model at 14
+2026-04-10 15:29:39,290 - INFO - Val loss decrease from 49.8231 to 48.8141, saving to ./libcity/cache/exp001/model_cache/MCSTMamba_optimized_PEMSD4_epoch14.tar
+2026-04-10 15:32:07,674 - INFO - epoch complete!
+2026-04-10 15:32:07,674 - INFO - evaluating now!
+2026-04-10 15:32:23,873 - INFO - Epoch [15/300] train_loss: 46.1424, val_loss: 47.8807, lr: 0.000448, 164.58s
+2026-04-10 15:32:23,891 - INFO - Saved model at 15
+2026-04-10 15:32:23,891 - INFO - Val loss decrease from 48.8141 to 47.8807, saving to ./libcity/cache/exp001/model_cache/MCSTMamba_optimized_PEMSD4_epoch15.tar
+2026-04-10 15:34:50,301 - INFO - epoch complete!
+2026-04-10 15:34:50,301 - INFO - evaluating now!
+2026-04-10 15:35:06,582 - INFO - Epoch [16/300] train_loss: 45.3196, val_loss: 47.0120, lr: 0.000396, 162.69s
+2026-04-10 15:35:06,599 - INFO - Saved model at 16
+2026-04-10 15:35:06,599 - INFO - Val loss decrease from 47.8807 to 47.0120, saving to ./libcity/cache/exp001/model_cache/MCSTMamba_optimized_PEMSD4_epoch16.tar
+2026-04-10 15:37:31,486 - INFO - epoch complete!
+2026-04-10 15:37:31,487 - INFO - evaluating now!
+2026-04-10 15:37:47,239 - INFO - Epoch [17/300] train_loss: 44.4038, val_loss: 46.0774, lr: 0.000345, 160.64s
+2026-04-10 15:37:47,255 - INFO - Saved model at 17
+2026-04-10 15:37:47,256 - INFO - Val loss decrease from 47.0120 to 46.0774, saving to ./libcity/cache/exp001/model_cache/MCSTMamba_optimized_PEMSD4_epoch17.tar
