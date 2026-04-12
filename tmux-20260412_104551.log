@@ -1,0 +1,381 @@
+(base) root@gpu-kvm:~/MCST-Mamba# conda activate mcst
+(mcst) root@gpu-kvm:~/MCST-Mamba# LOGFILE="./tmux-$(date +%Y%m%d_%H%M%S).log"
+(mcst) root@gpu-kvm:~/MCST-Mamba# tmux capture-pane -S - -p > "$LOGFILE"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[?2004h(mcst) root@gpu-kvm:~/MCST-Mamba# [3mpython run_model.py --task traffic_state_pred --model MCSTMamba --dataset METR_LA --exp_id MCST001[23m[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Cpython run_model.py --task traffic_state_pred --model MCSTMamba --dataset METR_LA --exp_id MCST001
+[?2004l2026-04-12 10:46:37,872 - INFO - Log directory: ./libcity/log
+2026-04-12 10:46:37,872 - INFO - Begin pipeline, task=traffic_state_pred, model_name=MCSTMamba, dataset_name=METR_LA, exp_id=MCST001, epoch=0
+2026-04-12 10:46:37,872 - INFO - {'task': 'traffic_state_pred', 'model': 'MCSTMamba', 'dataset': 'METR_LA', 'saved_model': True, 'train': True, 'exp_id': 'MCST001', 'seed': 0, 'dataset_class': 'TrafficStatePointDataset', 'executor': 'TrafficStateExecutor', 'evaluator': 'TrafficStateEvaluator', 'd_model': 96, 'd_state': 96, 'd_conv': 4, 'expand': 2, 'max_epoch': 300, 'learner': 'adam', 'learning_rate': 0.001, 'lr_decay': True, 'lr_scheduler': 'cosineannealinglr', 'input_window': 12, 'output_window': 12, 'early_stop': True, 'patience': 15, 'weight_decay': 0.0001, 'input_embedding_dim': 24, 'tod_embedding_dim': 24, 'dow_embedding_dim': 24, 'spatial_embedding_dim': 16, 'adaptive_embedding_dim': 80, 'add_time_in_day': True, 'add_day_in_week': True, 'steps_per_day': 288, 'dropout': 0.1, 'batch_size': 200, 'num_workers': 8, 'pin_memory': True, 'fp16': True, 'gpu': True, 'cache_dataset': True, 'pad_with_last_sample': True, 'train_rate': 0.7, 'eval_rate': 0.1, 'scaler': 'none', 'load_external': False, 'normal_external': False, 'ext_scaler': 'none', 'robustness_test': False, 'noise_type': 'gaussian', 'disturb_rate': 0.5, 'noise_mean': [5], 'noise_SD': [10], 'gpu_id': 0, 'train_loss': 'none', 'epoch': 0, 'lr_epsilon': 1e-08, 'lr_beta1': 0.9, 'lr_beta2': 0.999, 'lr_alpha': 0.99, 'lr_momentum': 0, 'lr_decay_ratio': 0.1, 'steps': [5, 20, 40, 70], 'step_size': 10, 'lr_T_max': 30, 'lr_eta_min': 0, 'lr_patience': 10, 'lr_threshold': 0.0001, 'clip_grad_norm': False, 'max_grad_norm': 1.0, 'use_early_stop': False, 'log_level': 'INFO', 'log_every': 1, 'load_best_epoch': True, 'hyper_tune': False, 'metrics': ['MAE', 'MAPE', 'MSE', 'RMSE', 'masked_MAE', 'masked_MAPE', 'masked_MSE', 'masked_RMSE', 'R2', 'EVAR'], 'evaluator_mode': 'single', 'save_mode': ['csv'], 'geo': {'including_types': ['Point'], 'Point': {}}, 'rel': {'including_types': ['geo'], 'geo': {'cost': 'num'}}, 'dyna': {'including_types': ['state'], 'state': {'entity_id': 'geo_id', 'traffic_speed': 'num'}}, 'data_col': ['traffic_speed'], 'weight_col': 'cost', 'data_files': ['METR_LA'], 'geo_file': 'METR_LA', 'rel_file': 'METR_LA', 'output_dim': 1, 'time_intervals': 300, 'init_weight_inf_or_zero': 'inf', 'set_weight_link_or_dist': 'dist', 'calculate_weight_adj': True, 'weight_adj_epsilon': 0.1, 'device': device(type='cuda', index=0)}
+2026-04-12 10:46:38,913 - INFO - Loaded file METR_LA.geo, num_nodes=207
+2026-04-12 10:46:38,923 - INFO - set_weight_link_or_dist: dist
+2026-04-12 10:46:38,924 - INFO - init_weight_inf_or_zero: inf
+2026-04-12 10:46:38,942 - INFO - Loaded file METR_LA.rel, shape=(207, 207)
+2026-04-12 10:46:38,942 - INFO - Start Calculate the weight by Gauss kernel!
+2026-04-12 10:46:38,944 - INFO - Loading ./libcity/cache/dataset_cache/point_based_METR_LA_12_12_0.7_0.1_none_200_False_True_True_True.npz
+2026-04-12 10:46:40,863 - INFO - train	x: (23974, 12, 207, 1), y: (23974, 12, 207, 1)
+2026-04-12 10:46:40,863 - INFO - eval	x: (3425, 12, 207, 1), y: (3425, 12, 207, 1)
+2026-04-12 10:46:40,863 - INFO - test	x: (6850, 12, 207, 1), y: (6850, 12, 207, 1)
+2026-04-12 10:46:40,863 - INFO - NoneScaler
+2026-04-12 10:46:40,863 - INFO - NoneScaler
+2026-04-12 10:46:46,175 - INFO - Building simplified MCSTMamba model with just two Mamba blocks
+2026-04-12 10:46:46,228 - INFO - Simplified MCSTMamba model configured for device: cuda:0
+2026-04-12 10:46:47,318 - INFO - MCSTMamba(
+  (input_proj): Linear(in_features=1, out_features=24, bias=True)
+  (tod_embedding): Embedding(288, 24)
+  (dow_embedding): Embedding(7, 24)
+  (mamba_input_proj): Linear(in_features=168, out_features=96, bias=True)
+  (temporal_block): SimpleMambaBlock(
+    (layer_norm): LayerNorm((96,), eps=1e-05, elementwise_affine=True)
+    (mamba): Mamba(
+      (in_proj): Linear(in_features=96, out_features=384, bias=False)
+      (conv1d): Conv1d(192, 192, kernel_size=(4,), stride=(1,), padding=(3,), groups=192)
+      (act): SiLU()
+      (x_proj): Linear(in_features=192, out_features=198, bias=False)
+      (dt_proj): Linear(in_features=6, out_features=192, bias=True)
+      (out_proj): Linear(in_features=192, out_features=96, bias=False)
+    )
+    (dropout): Dropout(p=0.1, inplace=False)
+    (feed_forward): Sequential(
+      (0): Linear(in_features=96, out_features=384, bias=True)
+      (1): GELU(approximate='none')
+      (2): Dropout(p=0.1, inplace=False)
+      (3): Linear(in_features=384, out_features=96, bias=True)
+    )
+    (ff_norm): LayerNorm((96,), eps=1e-05, elementwise_affine=True)
+    (ff_dropout): Dropout(p=0.1, inplace=False)
+  )
+  (spatial_block): SimpleMambaBlock(
+    (layer_norm): LayerNorm((96,), eps=1e-05, elementwise_affine=True)
+    (mamba): Mamba(
+      (in_proj): Linear(in_features=96, out_features=384, bias=False)
+      (conv1d): Conv1d(192, 192, kernel_size=(4,), stride=(1,), padding=(3,), groups=192)
+      (act): SiLU()
+      (x_proj): Linear(in_features=192, out_features=198, bias=False)
+      (dt_proj): Linear(in_features=6, out_features=192, bias=True)
+      (out_proj): Linear(in_features=192, out_features=96, bias=False)
+    )
+    (dropout): Dropout(p=0.1, inplace=False)
+    (feed_forward): Sequential(
+      (0): Linear(in_features=96, out_features=384, bias=True)
+      (1): GELU(approximate='none')
+      (2): Dropout(p=0.1, inplace=False)
+      (3): Linear(in_features=384, out_features=96, bias=True)
+    )
+    (ff_norm): LayerNorm((96,), eps=1e-05, elementwise_affine=True)
+    (ff_dropout): Dropout(p=0.1, inplace=False)
+  )
+  (output_proj): Linear(in_features=96, out_features=1, bias=True)
+  (final_layer_norm): LayerNorm((96,), eps=1e-05, elementwise_affine=True)
+)
+2026-04-12 10:46:47,318 - INFO - spatial_embedding	torch.Size([207, 16])	cuda:0	True
+2026-04-12 10:46:47,318 - INFO - adaptive_embedding	torch.Size([12, 207, 80])	cuda:0	True
+2026-04-12 10:46:47,318 - INFO - combine_weights	torch.Size([2, 96])	cuda:0	True
+2026-04-12 10:46:47,318 - INFO - input_proj.weight	torch.Size([24, 1])	cuda:0	True
+2026-04-12 10:46:47,319 - INFO - input_proj.bias	torch.Size([24])	cuda:0	True
+2026-04-12 10:46:47,319 - INFO - tod_embedding.weight	torch.Size([288, 24])	cuda:0	True
+2026-04-12 10:46:47,319 - INFO - dow_embedding.weight	torch.Size([7, 24])	cuda:0	True
+2026-04-12 10:46:47,319 - INFO - mamba_input_proj.weight	torch.Size([96, 168])	cuda:0	True
+2026-04-12 10:46:47,319 - INFO - mamba_input_proj.bias	torch.Size([96])	cuda:0	True
+2026-04-12 10:46:47,319 - INFO - temporal_block.layer_norm.weight	torch.Size([96])	cuda:0	True
+2026-04-12 10:46:47,319 - INFO - temporal_block.layer_norm.bias	torch.Size([96])	cuda:0	True
+2026-04-12 10:46:47,319 - INFO - temporal_block.mamba.A_log	torch.Size([192, 96])	cuda:0	True
+2026-04-12 10:46:47,319 - INFO - temporal_block.mamba.D	torch.Size([192])	cuda:0	True
+2026-04-12 10:46:47,319 - INFO - temporal_block.mamba.in_proj.weight	torch.Size([384, 96])	cuda:0	True
+2026-04-12 10:46:47,319 - INFO - temporal_block.mamba.conv1d.weight	torch.Size([192, 1, 4])	cuda:0	True
+2026-04-12 10:46:47,319 - INFO - temporal_block.mamba.conv1d.bias	torch.Size([192])	cuda:0	True
+2026-04-12 10:46:47,319 - INFO - temporal_block.mamba.x_proj.weight	torch.Size([198, 192])	cuda:0	True
+2026-04-12 10:46:47,319 - INFO - temporal_block.mamba.dt_proj.weight	torch.Size([192, 6])	cuda:0	True
+2026-04-12 10:46:47,319 - INFO - temporal_block.mamba.dt_proj.bias	torch.Size([192])	cuda:0	True
+2026-04-12 10:46:47,319 - INFO - temporal_block.mamba.out_proj.weight	torch.Size([96, 192])	cuda:0	True
+2026-04-12 10:46:47,319 - INFO - temporal_block.feed_forward.0.weight	torch.Size([384, 96])	cuda:0	True
+2026-04-12 10:46:47,319 - INFO - temporal_block.feed_forward.0.bias	torch.Size([384])	cuda:0	True
+2026-04-12 10:46:47,319 - INFO - temporal_block.feed_forward.3.weight	torch.Size([96, 384])	cuda:0	True
+2026-04-12 10:46:47,319 - INFO - temporal_block.feed_forward.3.bias	torch.Size([96])	cuda:0	True
+2026-04-12 10:46:47,319 - INFO - temporal_block.ff_norm.weight	torch.Size([96])	cuda:0	True
+2026-04-12 10:46:47,319 - INFO - temporal_block.ff_norm.bias	torch.Size([96])	cuda:0	True
+2026-04-12 10:46:47,319 - INFO - spatial_block.layer_norm.weight	torch.Size([96])	cuda:0	True
+2026-04-12 10:46:47,320 - INFO - spatial_block.layer_norm.bias	torch.Size([96])	cuda:0	True
+2026-04-12 10:46:47,320 - INFO - spatial_block.mamba.A_log	torch.Size([192, 96])	cuda:0	True
+2026-04-12 10:46:47,320 - INFO - spatial_block.mamba.D	torch.Size([192])	cuda:0	True
+2026-04-12 10:46:47,320 - INFO - spatial_block.mamba.in_proj.weight	torch.Size([384, 96])	cuda:0	True
+2026-04-12 10:46:47,320 - INFO - spatial_block.mamba.conv1d.weight	torch.Size([192, 1, 4])	cuda:0	True
+2026-04-12 10:46:47,320 - INFO - spatial_block.mamba.conv1d.bias	torch.Size([192])	cuda:0	True
+2026-04-12 10:46:47,320 - INFO - spatial_block.mamba.x_proj.weight	torch.Size([198, 192])	cuda:0	True
+2026-04-12 10:46:47,320 - INFO - spatial_block.mamba.dt_proj.weight	torch.Size([192, 6])	cuda:0	True
+2026-04-12 10:46:47,320 - INFO - spatial_block.mamba.dt_proj.bias	torch.Size([192])	cuda:0	True
+2026-04-12 10:46:47,320 - INFO - spatial_block.mamba.out_proj.weight	torch.Size([96, 192])	cuda:0	True
+2026-04-12 10:46:47,320 - INFO - spatial_block.feed_forward.0.weight	torch.Size([384, 96])	cuda:0	True
+2026-04-12 10:46:47,320 - INFO - spatial_block.feed_forward.0.bias	torch.Size([384])	cuda:0	True
+2026-04-12 10:46:47,320 - INFO - spatial_block.feed_forward.3.weight	torch.Size([96, 384])	cuda:0	True
+2026-04-12 10:46:47,320 - INFO - spatial_block.feed_forward.3.bias	torch.Size([96])	cuda:0	True
+2026-04-12 10:46:47,320 - INFO - spatial_block.ff_norm.weight	torch.Size([96])	cuda:0	True
+2026-04-12 10:46:47,320 - INFO - spatial_block.ff_norm.bias	torch.Size([96])	cuda:0	True
+2026-04-12 10:46:47,320 - INFO - output_proj.weight	torch.Size([1, 96])	cuda:0	True
+2026-04-12 10:46:47,320 - INFO - output_proj.bias	torch.Size([1])	cuda:0	True
+2026-04-12 10:46:47,320 - INFO - final_layer_norm.weight	torch.Size([96])	cuda:0	True
+2026-04-12 10:46:47,320 - INFO - final_layer_norm.bias	torch.Size([96])	cuda:0	True
+2026-04-12 10:46:47,320 - INFO - Total parameter numbers: 603529
+2026-04-12 10:46:47,321 - INFO - You select `adam` optimizer.
+2026-04-12 10:46:47,321 - INFO - You select `cosineannealinglr` lr_scheduler.
+2026-04-12 10:46:47,321 - WARNING - Received none train loss func and will use the loss func defined in the model.
+2026-04-12 10:46:47,321 - INFO - Start training ...
+2026-04-12 10:46:47,321 - INFO - num_batches:120
+2026-04-12 10:49:42,258 - INFO - epoch complete!
+2026-04-12 10:49:42,259 - INFO - evaluating now!
+2026-04-12 10:49:59,011 - INFO - Epoch [0/300] train_loss: 47.3412, val_loss: 38.3648, lr: 0.000997, 191.69s
+2026-04-12 10:49:59,036 - INFO - Saved model at 0
+2026-04-12 10:49:59,036 - INFO - Val loss decrease from inf to 38.3648, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch0.tar
+2026-04-12 10:52:54,401 - INFO - epoch complete!
+2026-04-12 10:52:54,401 - INFO - evaluating now!
+2026-04-12 10:53:11,010 - INFO - Epoch [1/300] train_loss: 26.8390, val_loss: 15.3978, lr: 0.000989, 191.97s
+2026-04-12 10:53:11,024 - INFO - Saved model at 1
+2026-04-12 10:53:11,025 - INFO - Val loss decrease from 38.3648 to 15.3978, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch1.tar
+2026-04-12 10:56:06,178 - INFO - epoch complete!
+2026-04-12 10:56:06,179 - INFO - evaluating now!
+2026-04-12 10:56:22,938 - INFO - Epoch [2/300] train_loss: 7.6210, val_loss: 4.8684, lr: 0.000976, 191.91s
+2026-04-12 10:56:22,954 - INFO - Saved model at 2
+2026-04-12 10:56:22,954 - INFO - Val loss decrease from 15.3978 to 4.8684, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch2.tar
+2026-04-12 10:59:18,800 - INFO - epoch complete!
+2026-04-12 10:59:18,801 - INFO - evaluating now!
+2026-04-12 10:59:35,501 - INFO - Epoch [3/300] train_loss: 4.8016, val_loss: 4.4771, lr: 0.000957, 192.55s
+2026-04-12 10:59:35,516 - INFO - Saved model at 3
+2026-04-12 10:59:35,516 - INFO - Val loss decrease from 4.8684 to 4.4771, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch3.tar
+2026-04-12 11:02:31,117 - INFO - epoch complete!
+2026-04-12 11:02:31,117 - INFO - evaluating now!
+2026-04-12 11:02:47,708 - INFO - Epoch [4/300] train_loss: 4.7239, val_loss: 4.4464, lr: 0.000933, 192.19s
+2026-04-12 11:02:47,723 - INFO - Saved model at 4
+2026-04-12 11:02:47,723 - INFO - Val loss decrease from 4.4771 to 4.4464, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch4.tar
+2026-04-12 11:05:43,719 - INFO - epoch complete!
+2026-04-12 11:05:43,719 - INFO - evaluating now!
+2026-04-12 11:06:00,372 - INFO - Epoch [5/300] train_loss: 4.6810, val_loss: 4.4247, lr: 0.000905, 192.65s
+2026-04-12 11:06:00,387 - INFO - Saved model at 5
+2026-04-12 11:06:00,387 - INFO - Val loss decrease from 4.4464 to 4.4247, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch5.tar
+2026-04-12 11:08:55,656 - INFO - epoch complete!
+2026-04-12 11:08:55,656 - INFO - evaluating now!
+2026-04-12 11:09:12,372 - INFO - Epoch [6/300] train_loss: 4.6854, val_loss: 4.4169, lr: 0.000872, 191.98s
+2026-04-12 11:09:12,386 - INFO - Saved model at 6
+2026-04-12 11:09:12,386 - INFO - Val loss decrease from 4.4247 to 4.4169, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch6.tar
+2026-04-12 11:12:08,623 - INFO - epoch complete!
+2026-04-12 11:12:08,623 - INFO - evaluating now!
+2026-04-12 11:12:25,389 - INFO - Epoch [7/300] train_loss: 4.6753, val_loss: 4.4137, lr: 0.000835, 193.00s
+2026-04-12 11:12:25,404 - INFO - Saved model at 7
+2026-04-12 11:12:25,404 - INFO - Val loss decrease from 4.4169 to 4.4137, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch7.tar
+2026-04-12 11:15:21,203 - INFO - epoch complete!
+2026-04-12 11:15:21,203 - INFO - evaluating now!
+2026-04-12 11:15:37,767 - INFO - Epoch [8/300] train_loss: 4.6631, val_loss: 4.5544, lr: 0.000794, 192.36s
+2026-04-12 11:18:33,269 - INFO - epoch complete!
+2026-04-12 11:18:33,269 - INFO - evaluating now!
+2026-04-12 11:18:50,148 - INFO - Epoch [9/300] train_loss: 4.6363, val_loss: 4.3858, lr: 0.000750, 192.38s
+2026-04-12 11:18:50,163 - INFO - Saved model at 9
+2026-04-12 11:18:50,164 - INFO - Val loss decrease from 4.4137 to 4.3858, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch9.tar
+2026-04-12 11:21:45,736 - INFO - epoch complete!
+2026-04-12 11:21:45,736 - INFO - evaluating now!
+2026-04-12 11:22:02,329 - INFO - Epoch [10/300] train_loss: 4.6225, val_loss: 4.3967, lr: 0.000703, 192.16s
+2026-04-12 11:24:57,311 - INFO - epoch complete!
+2026-04-12 11:24:57,311 - INFO - evaluating now!
+2026-04-12 11:25:14,089 - INFO - Epoch [11/300] train_loss: 4.6174, val_loss: 4.3681, lr: 0.000655, 191.76s
+2026-04-12 11:25:14,105 - INFO - Saved model at 11
+2026-04-12 11:25:14,105 - INFO - Val loss decrease from 4.3858 to 4.3681, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch11.tar
+2026-04-12 11:28:09,442 - INFO - epoch complete!
+2026-04-12 11:28:09,442 - INFO - evaluating now!
+2026-04-12 11:28:26,345 - INFO - Epoch [12/300] train_loss: 4.6089, val_loss: 4.4296, lr: 0.000604, 192.24s
+2026-04-12 11:31:20,395 - INFO - epoch complete!
+2026-04-12 11:31:20,395 - INFO - evaluating now!
+2026-04-12 11:31:36,992 - INFO - Epoch [13/300] train_loss: 4.6010, val_loss: 4.3474, lr: 0.000552, 190.65s
+2026-04-12 11:31:37,008 - INFO - Saved model at 13
+2026-04-12 11:31:37,008 - INFO - Val loss decrease from 4.3681 to 4.3474, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch13.tar
+2026-04-12 11:34:35,155 - INFO - epoch complete!
+2026-04-12 11:34:35,155 - INFO - evaluating now!
+2026-04-12 11:34:52,220 - INFO - Epoch [14/300] train_loss: 4.5916, val_loss: 4.3472, lr: 0.000500, 195.21s
+2026-04-12 11:34:52,235 - INFO - Saved model at 14
+2026-04-12 11:34:52,235 - INFO - Val loss decrease from 4.3474 to 4.3472, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch14.tar
+2026-04-12 11:37:48,380 - INFO - epoch complete!
+2026-04-12 11:37:48,380 - INFO - evaluating now!
+2026-04-12 11:38:04,881 - INFO - Epoch [15/300] train_loss: 4.5832, val_loss: 4.3562, lr: 0.000448, 192.64s
+2026-04-12 11:41:01,027 - INFO - epoch complete!
+2026-04-12 11:41:01,028 - INFO - evaluating now!
+2026-04-12 11:41:17,635 - INFO - Epoch [16/300] train_loss: 4.5713, val_loss: 4.3927, lr: 0.000396, 192.75s
+2026-04-12 11:44:12,918 - INFO - epoch complete!
+2026-04-12 11:44:12,918 - INFO - evaluating now!
+2026-04-12 11:44:29,413 - INFO - Epoch [17/300] train_loss: 4.5648, val_loss: 4.3435, lr: 0.000345, 191.78s
+2026-04-12 11:44:29,427 - INFO - Saved model at 17
+2026-04-12 11:44:29,427 - INFO - Val loss decrease from 4.3472 to 4.3435, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch17.tar
+2026-04-12 11:47:26,627 - INFO - epoch complete!
+2026-04-12 11:47:26,628 - INFO - evaluating now!
+2026-04-12 11:47:43,601 - INFO - Epoch [18/300] train_loss: 4.5596, val_loss: 4.3761, lr: 0.000297, 194.17s
+2026-04-12 11:50:40,215 - INFO - epoch complete!
+2026-04-12 11:50:40,215 - INFO - evaluating now!
+2026-04-12 11:50:56,886 - INFO - Epoch [19/300] train_loss: 4.5487, val_loss: 4.3635, lr: 0.000250, 193.29s
+2026-04-12 11:53:54,157 - INFO - epoch complete!
+2026-04-12 11:53:54,157 - INFO - evaluating now!
+2026-04-12 11:54:10,936 - INFO - Epoch [20/300] train_loss: 4.5420, val_loss: 4.3438, lr: 0.000206, 194.05s
+2026-04-12 11:57:07,420 - INFO - epoch complete!
+2026-04-12 11:57:07,420 - INFO - evaluating now!
+2026-04-12 11:57:24,167 - INFO - Epoch [21/300] train_loss: 4.5311, val_loss: 4.3446, lr: 0.000165, 193.23s
+2026-04-12 12:00:20,271 - INFO - epoch complete!
+2026-04-12 12:00:20,272 - INFO - evaluating now!
+2026-04-12 12:00:37,255 - INFO - Epoch [22/300] train_loss: 4.5261, val_loss: 4.3851, lr: 0.000128, 193.09s
+2026-04-12 12:03:34,004 - INFO - epoch complete!
+2026-04-12 12:03:34,005 - INFO - evaluating now!
+2026-04-12 12:03:50,834 - INFO - Epoch [23/300] train_loss: 4.5166, val_loss: 4.3856, lr: 0.000095, 193.58s
+2026-04-12 12:06:47,881 - INFO - epoch complete!
+2026-04-12 12:06:47,881 - INFO - evaluating now!
+2026-04-12 12:07:04,717 - INFO - Epoch [24/300] train_loss: 4.5121, val_loss: 4.3331, lr: 0.000067, 193.88s
+2026-04-12 12:07:04,731 - INFO - Saved model at 24
+2026-04-12 12:07:04,731 - INFO - Val loss decrease from 4.3435 to 4.3331, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch24.tar
+2026-04-12 12:10:01,011 - INFO - epoch complete!
+2026-04-12 12:10:01,011 - INFO - evaluating now!
+2026-04-12 12:10:17,954 - INFO - Epoch [25/300] train_loss: 4.5074, val_loss: 4.3285, lr: 0.000043, 193.22s
+2026-04-12 12:10:17,968 - INFO - Saved model at 25
+2026-04-12 12:10:17,968 - INFO - Val loss decrease from 4.3331 to 4.3285, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch25.tar
+2026-04-12 12:13:13,489 - INFO - epoch complete!
+2026-04-12 12:13:13,490 - INFO - evaluating now!
+2026-04-12 12:13:30,277 - INFO - Epoch [26/300] train_loss: 4.5048, val_loss: 4.3550, lr: 0.000024, 192.31s
+2026-04-12 12:16:26,397 - INFO - epoch complete!
+2026-04-12 12:16:26,397 - INFO - evaluating now!
+2026-04-12 12:16:42,998 - INFO - Epoch [27/300] train_loss: 4.5026, val_loss: 4.3349, lr: 0.000011, 192.72s
+2026-04-12 12:19:39,085 - INFO - epoch complete!
+2026-04-12 12:19:39,085 - INFO - evaluating now!
+2026-04-12 12:19:56,016 - INFO - Epoch [28/300] train_loss: 4.5004, val_loss: 4.3509, lr: 0.000003, 193.02s
+2026-04-12 12:22:52,154 - INFO - epoch complete!
+2026-04-12 12:22:52,155 - INFO - evaluating now!
+2026-04-12 12:23:08,687 - INFO - Epoch [29/300] train_loss: 4.4996, val_loss: 4.3450, lr: 0.000000, 192.67s
+2026-04-12 12:26:05,026 - INFO - epoch complete!
+2026-04-12 12:26:05,027 - INFO - evaluating now!
+2026-04-12 12:26:21,510 - INFO - Epoch [30/300] train_loss: 4.4993, val_loss: 4.3438, lr: 0.000003, 192.82s
+2026-04-12 12:29:15,968 - INFO - epoch complete!
+2026-04-12 12:29:15,968 - INFO - evaluating now!
+2026-04-12 12:29:32,384 - INFO - Epoch [31/300] train_loss: 4.4994, val_loss: 4.3420, lr: 0.000011, 190.87s
+2026-04-12 12:32:27,397 - INFO - epoch complete!
+2026-04-12 12:32:27,398 - INFO - evaluating now!
+2026-04-12 12:32:44,281 - INFO - Epoch [32/300] train_loss: 4.4990, val_loss: 4.3627, lr: 0.000024, 191.90s
+2026-04-12 12:35:40,413 - INFO - epoch complete!
+2026-04-12 12:35:40,414 - INFO - evaluating now!
+2026-04-12 12:35:57,198 - INFO - Epoch [33/300] train_loss: 4.4990, val_loss: 4.3770, lr: 0.000043, 192.92s
+2026-04-12 12:38:54,118 - INFO - epoch complete!
+2026-04-12 12:38:54,118 - INFO - evaluating now!
+2026-04-12 12:39:11,050 - INFO - Epoch [34/300] train_loss: 4.4982, val_loss: 4.3045, lr: 0.000067, 193.85s
+2026-04-12 12:39:11,065 - INFO - Saved model at 34
+2026-04-12 12:39:11,066 - INFO - Val loss decrease from 4.3285 to 4.3045, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch34.tar
+2026-04-12 12:42:07,630 - INFO - epoch complete!
+2026-04-12 12:42:07,631 - INFO - evaluating now!
+2026-04-12 12:42:24,553 - INFO - Epoch [35/300] train_loss: 4.4973, val_loss: 4.3116, lr: 0.000095, 193.49s
+2026-04-12 12:45:20,534 - INFO - epoch complete!
+2026-04-12 12:45:20,535 - INFO - evaluating now!
+2026-04-12 12:45:37,520 - INFO - Epoch [36/300] train_loss: 4.4950, val_loss: 4.3105, lr: 0.000128, 192.97s
+2026-04-12 12:48:31,627 - INFO - epoch complete!
+2026-04-12 12:48:31,628 - INFO - evaluating now!
+2026-04-12 12:48:48,417 - INFO - Epoch [37/300] train_loss: 4.4955, val_loss: 4.2983, lr: 0.000165, 190.90s
+2026-04-12 12:48:48,433 - INFO - Saved model at 37
+2026-04-12 12:48:48,433 - INFO - Val loss decrease from 4.3045 to 4.2983, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch37.tar
+2026-04-12 12:51:45,128 - INFO - epoch complete!
+2026-04-12 12:51:45,129 - INFO - evaluating now!
+2026-04-12 12:52:02,046 - INFO - Epoch [38/300] train_loss: 4.4876, val_loss: 4.3154, lr: 0.000206, 193.61s
+2026-04-12 12:55:00,175 - INFO - epoch complete!
+2026-04-12 12:55:00,175 - INFO - evaluating now!
+2026-04-12 12:55:17,045 - INFO - Epoch [39/300] train_loss: 4.4824, val_loss: 4.2970, lr: 0.000250, 195.00s
+2026-04-12 12:55:17,059 - INFO - Saved model at 39
+2026-04-12 12:55:17,060 - INFO - Val loss decrease from 4.2983 to 4.2970, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch39.tar
+2026-04-12 12:58:14,401 - INFO - epoch complete!
+2026-04-12 12:58:14,402 - INFO - evaluating now!
+2026-04-12 12:58:31,459 - INFO - Epoch [40/300] train_loss: 4.4757, val_loss: 4.2664, lr: 0.000297, 194.40s
+2026-04-12 12:58:31,474 - INFO - Saved model at 40
+2026-04-12 12:58:31,474 - INFO - Val loss decrease from 4.2970 to 4.2664, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch40.tar
+2026-04-12 13:01:28,704 - INFO - epoch complete!
+2026-04-12 13:01:28,704 - INFO - evaluating now!
+2026-04-12 13:01:45,566 - INFO - Epoch [41/300] train_loss: 4.4577, val_loss: 4.2985, lr: 0.000345, 194.09s
+2026-04-12 13:04:43,033 - INFO - epoch complete!
+2026-04-12 13:04:43,034 - INFO - evaluating now!
+2026-04-12 13:05:00,124 - INFO - Epoch [42/300] train_loss: 4.4505, val_loss: 4.2781, lr: 0.000396, 194.56s
+2026-04-12 13:07:57,293 - INFO - epoch complete!
+2026-04-12 13:07:57,293 - INFO - evaluating now!
+2026-04-12 13:08:14,298 - INFO - Epoch [43/300] train_loss: 4.4442, val_loss: 4.2021, lr: 0.000448, 194.17s
+2026-04-12 13:08:14,314 - INFO - Saved model at 43
+2026-04-12 13:08:14,314 - INFO - Val loss decrease from 4.2664 to 4.2021, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch43.tar
+2026-04-12 13:11:12,286 - INFO - epoch complete!
+2026-04-12 13:11:12,287 - INFO - evaluating now!
+2026-04-12 13:11:29,243 - INFO - Epoch [44/300] train_loss: 4.4162, val_loss: 4.1723, lr: 0.000500, 194.93s
+2026-04-12 13:11:29,258 - INFO - Saved model at 44
+2026-04-12 13:11:29,258 - INFO - Val loss decrease from 4.2021 to 4.1723, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch44.tar
+2026-04-12 13:14:26,592 - INFO - epoch complete!
+2026-04-12 13:14:26,593 - INFO - evaluating now!
+2026-04-12 13:14:43,564 - INFO - Epoch [45/300] train_loss: 4.3969, val_loss: 4.1375, lr: 0.000552, 194.31s
+2026-04-12 13:14:43,580 - INFO - Saved model at 45
+2026-04-12 13:14:43,580 - INFO - Val loss decrease from 4.1723 to 4.1375, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch45.tar
+2026-04-12 13:17:41,449 - INFO - epoch complete!
+2026-04-12 13:17:41,449 - INFO - evaluating now!
+2026-04-12 13:17:58,422 - INFO - Epoch [46/300] train_loss: 4.3884, val_loss: 4.1732, lr: 0.000604, 194.84s
+2026-04-12 13:20:56,680 - INFO - epoch complete!
+2026-04-12 13:20:56,681 - INFO - evaluating now!
+2026-04-12 13:21:13,697 - INFO - Epoch [47/300] train_loss: 4.3593, val_loss: 4.0547, lr: 0.000655, 195.27s
+2026-04-12 13:21:13,712 - INFO - Saved model at 47
+2026-04-12 13:21:13,713 - INFO - Val loss decrease from 4.1375 to 4.0547, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch47.tar
+2026-04-12 13:24:12,150 - INFO - epoch complete!
+2026-04-12 13:24:12,150 - INFO - evaluating now!
+2026-04-12 13:24:29,112 - INFO - Epoch [48/300] train_loss: 4.3517, val_loss: 4.0365, lr: 0.000703, 195.40s
+2026-04-12 13:24:29,126 - INFO - Saved model at 48
+2026-04-12 13:24:29,127 - INFO - Val loss decrease from 4.0547 to 4.0365, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch48.tar
+2026-04-12 13:27:26,143 - INFO - epoch complete!
+2026-04-12 13:27:26,143 - INFO - evaluating now!
+2026-04-12 13:27:43,245 - INFO - Epoch [49/300] train_loss: 4.3278, val_loss: 4.2311, lr: 0.000750, 194.12s
+2026-04-12 13:30:40,623 - INFO - epoch complete!
+2026-04-12 13:30:40,624 - INFO - evaluating now!
+2026-04-12 13:30:57,600 - INFO - Epoch [50/300] train_loss: 4.3078, val_loss: 4.0648, lr: 0.000794, 194.35s
+2026-04-12 13:33:54,506 - INFO - epoch complete!
+2026-04-12 13:33:54,506 - INFO - evaluating now!
+2026-04-12 13:34:11,383 - INFO - Epoch [51/300] train_loss: 4.2870, val_loss: 4.0027, lr: 0.000835, 193.78s
+2026-04-12 13:34:11,398 - INFO - Saved model at 51
+2026-04-12 13:34:11,398 - INFO - Val loss decrease from 4.0365 to 4.0027, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch51.tar
+2026-04-12 13:37:08,136 - INFO - epoch complete!
+2026-04-12 13:37:08,137 - INFO - evaluating now!
+2026-04-12 13:37:25,052 - INFO - Epoch [52/300] train_loss: 4.2534, val_loss: 3.9944, lr: 0.000872, 193.65s
+2026-04-12 13:37:25,067 - INFO - Saved model at 52
+2026-04-12 13:37:25,067 - INFO - Val loss decrease from 4.0027 to 3.9944, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch52.tar
+2026-04-12 13:40:21,732 - INFO - epoch complete!
+2026-04-12 13:40:21,733 - INFO - evaluating now!
+2026-04-12 13:40:38,605 - INFO - Epoch [53/300] train_loss: 4.2343, val_loss: 3.9453, lr: 0.000905, 193.54s
+2026-04-12 13:40:38,621 - INFO - Saved model at 53
+2026-04-12 13:40:38,621 - INFO - Val loss decrease from 3.9944 to 3.9453, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch53.tar
+2026-04-12 13:43:35,704 - INFO - epoch complete!
+2026-04-12 13:43:35,704 - INFO - evaluating now!
+2026-04-12 13:43:52,839 - INFO - Epoch [54/300] train_loss: 4.2080, val_loss: 3.9729, lr: 0.000933, 194.22s
+2026-04-12 13:46:49,892 - INFO - epoch complete!
+2026-04-12 13:46:49,892 - INFO - evaluating now!
+2026-04-12 13:47:06,761 - INFO - Epoch [55/300] train_loss: 4.2003, val_loss: 3.9083, lr: 0.000957, 193.92s
+2026-04-12 13:47:06,775 - INFO - Saved model at 55
+2026-04-12 13:47:06,775 - INFO - Val loss decrease from 3.9453 to 3.9083, saving to ./libcity/cache/MCST001/model_cache/MCSTMamba_METR_LA_epoch55.tar
+2026-04-12 13:50:03,467 - INFO - epoch complete!
+2026-04-12 13:50:03,467 - INFO - evaluating now!
+2026-04-12 13:50:20,459 - INFO - Epoch [56/300] train_loss: 4.1721, val_loss: 4.0180, lr: 0.000976, 193.68s
+^CTraceback (most recent call last):
+  File "/root/MCST-Mamba/run_model.py", line 41, in <module>
+    run_model(task=args.task, model_name=args.model, dataset_name=args.dataset,
+  File "/root/MCST-Mamba/libcity/pipeline/pipeline.py", line 250, in run_model
+    executor.train(train_data, valid_data)
+  File "/root/MCST-Mamba/libcity/executor/traffic_state_executor.py", line 500, in train
+    losses = self._train_epoch(train_dataloader, epoch_idx, self.loss_func)
+  File "/root/MCST-Mamba/libcity/executor/traffic_state_executor.py", line 596, in _train_epoch
+    loss.backward()
+  File "/miniconda3/envs/mcst/lib/python3.9/site-packages/torch/_tensor.py", line 487, in backward
+    torch.autograd.backward(
+  File "/miniconda3/envs/mcst/lib/python3.9/site-packages/torch/autograd/__init__.py", line 200, in backward
+    Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+KeyboardInterrupt
+
+^C
+[?2004h(mcst) root@gpu-kvm:~/MCST-Mamba# 
+[?2004l[?2004h(mcst) root@gpu-kvm:~/MCST-Mamba# 

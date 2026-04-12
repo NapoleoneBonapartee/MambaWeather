@@ -264,7 +264,7 @@ class TrafficStateDataset(AbstractDataset):
             data_col.insert(1, 'entity_id')
             dynafile = dynafile[data_col]
         else:  # 不指定则加载所有列
-            dynafile = dynafile[dynafile.columns[2:]]  # 从time列开始所有列
+            dynafile = dynafile[dynafile.columns[2:]]  # 从feature_dim第1列开始
         # 求时间序列
         self.timesolts = list(dynafile['time'][:int(dynafile.shape[0] / len(self.geo_ids))])
         self.idx_of_timesolts = dict()
