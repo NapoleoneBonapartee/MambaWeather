@@ -18,6 +18,24 @@
                 "PYTHONPATH": "${workspaceFolder}"
             },
             "justMyCode": false
+        },
+        {
+            "name": "Debug MCSTMamba METR_LA",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/run_model.py",
+            "args": [
+                "--task", "traffic_state_pred",
+                "--model", "MCSTMamba",
+                "--dataset", "METR_LA",
+                "--exp_id", "MCST001"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "justMyCode": false
         }
     ]
 }

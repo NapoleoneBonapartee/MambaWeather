@@ -23,7 +23,7 @@
     "add_day_in_week": true,
     "steps_per_day": 288,
     "dropout": 0.1,
-    "batch_size": 200,
+    "batch_size": 128,
     "num_workers": 8,
     "pin_memory": true,
     "fp16": true,
