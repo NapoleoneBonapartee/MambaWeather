@@ -556,3 +556,62 @@
 2026-04-15 18:39:27,845 - INFO - epoch complete!
 2026-04-15 18:39:27,845 - INFO - evaluating now!
 2026-04-15 18:39:28,935 - INFO - Epoch [103/300] train_loss: 2.8281, val_loss: 3.0855, lr: 0.000448, 33.40s
+2026-04-15 18:40:01,574 - INFO - epoch complete!
+2026-04-15 18:40:01,575 - INFO - evaluating now!
+2026-04-15 18:40:02,655 - INFO - Epoch [104/300] train_loss: 2.8277, val_loss: 3.0759, lr: 0.000500, 33.72s
+2026-04-15 18:40:35,348 - INFO - epoch complete!
+2026-04-15 18:40:35,348 - INFO - evaluating now!
+2026-04-15 18:40:36,428 - INFO - Epoch [105/300] train_loss: 2.8291, val_loss: 3.0623, lr: 0.000552, 33.77s
+2026-04-15 18:41:09,186 - INFO - epoch complete!
+2026-04-15 18:41:09,186 - INFO - evaluating now!
+2026-04-15 18:41:10,288 - INFO - Epoch [106/300] train_loss: 2.8348, val_loss: 3.0804, lr: 0.000604, 33.86s
+2026-04-15 18:41:42,869 - INFO - epoch complete!
+2026-04-15 18:41:42,869 - INFO - evaluating now!
+2026-04-15 18:41:43,960 - INFO - Epoch [107/300] train_loss: 2.8368, val_loss: 3.1315, lr: 0.000655, 33.67s
+2026-04-15 18:42:16,348 - INFO - epoch complete!
+2026-04-15 18:42:16,348 - INFO - evaluating now!
+2026-04-15 18:42:17,412 - INFO - Epoch [108/300] train_loss: 2.8455, val_loss: 3.1454, lr: 0.000703, 33.45s
+2026-04-15 18:42:50,029 - INFO - epoch complete!
+2026-04-15 18:42:50,029 - INFO - evaluating now!
+2026-04-15 18:42:51,086 - INFO - Epoch [109/300] train_loss: 2.8482, val_loss: 3.0693, lr: 0.000750, 33.67s
+2026-04-15 18:43:23,617 - INFO - epoch complete!
+2026-04-15 18:43:23,617 - INFO - evaluating now!
+2026-04-15 18:43:24,690 - INFO - Epoch [110/300] train_loss: 2.8395, val_loss: 3.0610, lr: 0.000794, 33.60s
+2026-04-15 18:43:57,380 - INFO - epoch complete!
+2026-04-15 18:43:57,380 - INFO - evaluating now!
+2026-04-15 18:43:58,457 - INFO - Epoch [111/300] train_loss: 2.8311, val_loss: 3.0715, lr: 0.000835, 33.77s
+2026-04-15 18:44:30,910 - INFO - epoch complete!
+2026-04-15 18:44:30,911 - INFO - evaluating now!
+2026-04-15 18:44:31,972 - INFO - Epoch [112/300] train_loss: 2.8418, val_loss: 3.1745, lr: 0.000872, 33.52s
+2026-04-15 18:45:04,335 - INFO - epoch complete!
+2026-04-15 18:45:04,335 - INFO - evaluating now!
+2026-04-15 18:45:05,388 - INFO - Epoch [113/300] train_loss: 2.8395, val_loss: 3.0687, lr: 0.000905, 33.41s
+2026-04-15 18:45:38,012 - INFO - epoch complete!
+2026-04-15 18:45:38,012 - INFO - evaluating now!
+2026-04-15 18:45:39,068 - INFO - Epoch [114/300] train_loss: 2.8386, val_loss: 3.1111, lr: 0.000933, 33.68s
+2026-04-15 18:46:11,569 - INFO - epoch complete!
+2026-04-15 18:46:11,570 - INFO - evaluating now!
+2026-04-15 18:46:12,623 - INFO - Epoch [115/300] train_loss: 2.8469, val_loss: 3.1085, lr: 0.000957, 33.55s
+2026-04-15 18:46:12,623 - WARNING - Early stopping at epoch: 115
+2026-04-15 18:46:12,623 - INFO - Trained totally 116 epochs, average train time is 33.581s, average eval time is 1.251s
+2026-04-15 18:46:12,623 - INFO - Training ended. Best epoch: 85, min val loss: 3.0551
+2026-04-15 18:46:12,645 - INFO - 已恢复梯度缩放器状态
+2026-04-15 18:46:12,646 - INFO - 已恢复学习率调度器状态 (当前学习率: 0.000043)
+2026-04-15 18:46:12,646 - INFO - 已恢复最佳epoch记录: 85
+2026-04-15 18:46:12,646 - INFO - 已恢复最小验证损失: 3.0551
+2026-04-15 18:46:12,646 - INFO - 已恢复early stopping等待计数: 0
+2026-04-15 18:46:12,646 - INFO - Loaded model at 85
+2026-04-15 18:46:12,646 - INFO - Saved model at ./libcity/cache/W001/model_cache/MCSTWeather_METR_LA.m
+2026-04-15 18:46:12,663 - INFO - Start evaluating ...
+2026-04-15 18:46:13,532 - INFO - Saved visualizations for batch 0
+2026-04-15 18:46:21,329 - INFO - Saved visualizations for batch 10
+2026-04-15 18:46:29,361 - INFO - Saved visualizations for batch 20
+2026-04-15 18:46:37,247 - INFO - Saved visualizations for batch 30
+2026-04-15 18:46:45,338 - INFO - Saved visualizations for batch 40
+2026-04-15 18:46:53,163 - INFO - Saved visualizations for batch 50
+2026-04-15 18:47:00,289 - INFO - Saved predictions to ./libcity/cache/W001/evaluate_cache/2026_04_15_18_46_55_MCSTWeather_METR_LA_predictions.npz
+2026-04-15 18:47:00,298 - ERROR - Failed to calculate or save evaluation metrics: Could not infer dtype of numpy.float32
+2026-04-15 18:47:00,299 - INFO - Copied log file to cache: ./libcity/cache/W001/logs/W001-MCSTWeather-METR_LA-Apr-15-2026_17-36-55.log
+2026-04-15 18:47:00,300 - INFO - Created training summary: ./libcity/cache/W001/logs/training_summary.txt
+2026-04-15 18:47:01,248 - INFO - Generated visualization: ./libcity/cache/W001/logs/loss_curve.png
+2026-04-15 18:47:01,248 - INFO - Generated visualization: ./libcity/cache/W001/logs/loss_curve_log_scale.png

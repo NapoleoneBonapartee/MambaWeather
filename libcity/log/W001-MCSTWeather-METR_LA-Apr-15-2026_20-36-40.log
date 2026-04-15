@@ -1,0 +1,168 @@
+2026-04-15 20:36:40,778 - INFO - Log directory: ./libcity/log
+2026-04-15 20:36:40,778 - INFO - Evaluating model: MCSTWeather on dataset: METR_LA
+2026-04-15 20:36:40,779 - INFO - Using model from: ./libcity/cache/W001/model_cache/MCSTWeather_METR_LA_epoch85.tar
+2026-04-15 20:36:40,779 - INFO - Evaluation results will be saved to: ./libcity/cache/W001/evaluations/eval_20260415_203640
+2026-04-15 20:36:40,779 - INFO - Visualizations will be saved to: ./libcity/cache/W001/evaluations/eval_20260415_203640/visualizations (see other_args['visualization_dir'])
+2026-04-15 20:36:40,879 - INFO - Loaded file METR_LA.geo, num_nodes=207
+2026-04-15 20:36:40,886 - INFO - set_weight_link_or_dist: dist
+2026-04-15 20:36:40,886 - INFO - init_weight_inf_or_zero: inf
+2026-04-15 20:36:40,900 - INFO - Loaded file METR_LA.rel, shape=(207, 207)
+2026-04-15 20:36:40,900 - INFO - Start Calculate the weight by Gauss kernel!
+2026-04-15 20:36:40,900 - INFO - Loading ./libcity/cache/dataset_cache/point_based_METR_LA_12_12_0.7_0.1_standard_128_False_True_True_True_timestamp.npz
+2026-04-15 20:36:47,510 - INFO - Loaded timestamp info from cache: start_time=2012-03-01T00:00:00.000000000, total_time_steps=34272, time_intervals=300
+2026-04-15 20:36:47,510 - INFO - train	x: (23974, 12, 207, 2), y: (23974, 12, 207, 2)
+2026-04-15 20:36:47,510 - INFO - eval	x: (3425, 12, 207, 2), y: (3425, 12, 207, 2)
+2026-04-15 20:36:47,510 - INFO - test	x: (6850, 12, 207, 2), y: (6850, 12, 207, 2)
+2026-04-15 20:36:48,076 - INFO - StandardScaler mean: 54.40592829587626, std: 19.493739270573094
+2026-04-15 20:36:48,076 - INFO - NoneScaler
+2026-04-15 20:36:53,882 - INFO - Weather data loaded from ./raw_data/METR_LA/weather.csv
+2026-04-15 20:36:53,882 - INFO - Weather features: ['temp_range', 'temp_avg', 'apparent_temp_diff', 'humidity_level', 'humidity_change', 'humidity_range', 'wind_gust_ratio', 'wind_avg', 'wind_speed', 'pressure_diff', 'pressure_change', 'pressure_level', 'has_precipitation', 'precipitation_level', 'wind_dir_sin', 'wind_dir_cos', 'weather_phenomena_count', 'has_severe_weather', 'hour', 'hour_sin', 'hour_cos']
+2026-04-15 20:36:53,883 - INFO - Building MCSTWeather model with weather integration
+2026-04-15 20:36:54,032 - INFO - MCSTWeather model initialized with weather_embed_dim=64
+2026-04-15 20:36:54,377 - INFO - MCSTWeather(
+  (input_proj): Linear(in_features=1, out_features=24, bias=True)
+  (tod_embedding): Embedding(288, 24)
+  (dow_embedding): Embedding(7, 24)
+  (mamba_input_proj): Linear(in_features=168, out_features=96, bias=True)
+  (weather_feature_proj): Sequential(
+    (0): Linear(in_features=21, out_features=128, bias=True)
+    (1): ReLU()
+    (2): Dropout(p=0.1, inplace=False)
+    (3): Linear(in_features=128, out_features=64, bias=True)
+  )
+  (weather_spatial_expand): Linear(in_features=64, out_features=64, bias=True)
+  (temporal_block): SimpleMambaWeatherBlock(
+    (layer_norm): LayerNorm((96,), eps=1e-05, elementwise_affine=True)
+    (mamba_weather): MambaWeather(
+      (in_proj): Linear(in_features=96, out_features=384, bias=False)
+      (conv1d): Conv1d(192, 192, kernel_size=(4,), stride=(1,), padding=(3,), groups=192)
+      (act): SiLU()
+      (x_proj): Linear(in_features=256, out_features=70, bias=False)
+      (dt_proj): Linear(in_features=6, out_features=192, bias=True)
+      (out_proj): Linear(in_features=192, out_features=96, bias=False)
+      (weather_proj): Linear(in_features=64, out_features=64, bias=True)
+    )
+    (dropout): Dropout(p=0.1, inplace=False)
+    (feed_forward): Sequential(
+      (0): Linear(in_features=96, out_features=384, bias=True)
+      (1): GELU(approximate='none')
+      (2): Dropout(p=0.1, inplace=False)
+      (3): Linear(in_features=384, out_features=96, bias=True)
+    )
+    (ff_norm): LayerNorm((96,), eps=1e-05, elementwise_affine=True)
+    (ff_dropout): Dropout(p=0.1, inplace=False)
+  )
+  (spatial_block): SimpleMambaWeatherBlock(
+    (layer_norm): LayerNorm((96,), eps=1e-05, elementwise_affine=True)
+    (mamba_weather): MambaWeather(
+      (in_proj): Linear(in_features=96, out_features=384, bias=False)
+      (conv1d): Conv1d(192, 192, kernel_size=(4,), stride=(1,), padding=(3,), groups=192)
+      (act): SiLU()
+      (x_proj): Linear(in_features=256, out_features=70, bias=False)
+      (dt_proj): Linear(in_features=6, out_features=192, bias=True)
+      (out_proj): Linear(in_features=192, out_features=96, bias=False)
+      (weather_proj): Linear(in_features=64, out_features=64, bias=True)
+    )
+    (dropout): Dropout(p=0.1, inplace=False)
+    (feed_forward): Sequential(
+      (0): Linear(in_features=96, out_features=384, bias=True)
+      (1): GELU(approximate='none')
+      (2): Dropout(p=0.1, inplace=False)
+      (3): Linear(in_features=384, out_features=96, bias=True)
+    )
+    (ff_norm): LayerNorm((96,), eps=1e-05, elementwise_affine=True)
+    (ff_dropout): Dropout(p=0.1, inplace=False)
+  )
+  (temporal_proj): Linear(in_features=12, out_features=12, bias=True)
+  (output_proj): Linear(in_features=96, out_features=1, bias=True)
+  (final_layer_norm): LayerNorm((96,), eps=1e-05, elementwise_affine=True)
+)
+2026-04-15 20:36:54,377 - INFO - spatial_embedding	torch.Size([207, 16])	cuda:0	True
+2026-04-15 20:36:54,378 - INFO - adaptive_embedding	torch.Size([12, 207, 80])	cuda:0	True
+2026-04-15 20:36:54,378 - INFO - combine_weights	torch.Size([2, 96])	cuda:0	True
+2026-04-15 20:36:54,378 - INFO - input_proj.weight	torch.Size([24, 1])	cuda:0	True
+2026-04-15 20:36:54,378 - INFO - input_proj.bias	torch.Size([24])	cuda:0	True
+2026-04-15 20:36:54,378 - INFO - tod_embedding.weight	torch.Size([288, 24])	cuda:0	True
+2026-04-15 20:36:54,378 - INFO - dow_embedding.weight	torch.Size([7, 24])	cuda:0	True
+2026-04-15 20:36:54,378 - INFO - mamba_input_proj.weight	torch.Size([96, 168])	cuda:0	True
+2026-04-15 20:36:54,378 - INFO - mamba_input_proj.bias	torch.Size([96])	cuda:0	True
+2026-04-15 20:36:54,378 - INFO - weather_feature_proj.0.weight	torch.Size([128, 21])	cuda:0	True
+2026-04-15 20:36:54,378 - INFO - weather_feature_proj.0.bias	torch.Size([128])	cuda:0	True
+2026-04-15 20:36:54,378 - INFO - weather_feature_proj.3.weight	torch.Size([64, 128])	cuda:0	True
+2026-04-15 20:36:54,378 - INFO - weather_feature_proj.3.bias	torch.Size([64])	cuda:0	True
+2026-04-15 20:36:54,378 - INFO - weather_spatial_expand.weight	torch.Size([64, 64])	cuda:0	True
+2026-04-15 20:36:54,378 - INFO - weather_spatial_expand.bias	torch.Size([64])	cuda:0	True
+2026-04-15 20:36:54,378 - INFO - temporal_block.layer_norm.weight	torch.Size([96])	cuda:0	True
+2026-04-15 20:36:54,378 - INFO - temporal_block.layer_norm.bias	torch.Size([96])	cuda:0	True
+2026-04-15 20:36:54,378 - INFO - temporal_block.mamba_weather.A_log	torch.Size([192, 32])	cuda:0	True
+2026-04-15 20:36:54,378 - INFO - temporal_block.mamba_weather.D	torch.Size([192])	cuda:0	True
+2026-04-15 20:36:54,378 - INFO - temporal_block.mamba_weather.in_proj.weight	torch.Size([384, 96])	cuda:0	True
+2026-04-15 20:36:54,378 - INFO - temporal_block.mamba_weather.conv1d.weight	torch.Size([192, 1, 4])	cuda:0	True
+2026-04-15 20:36:54,378 - INFO - temporal_block.mamba_weather.conv1d.bias	torch.Size([192])	cuda:0	True
+2026-04-15 20:36:54,378 - INFO - temporal_block.mamba_weather.x_proj.weight	torch.Size([70, 256])	cuda:0	True
+2026-04-15 20:36:54,378 - INFO - temporal_block.mamba_weather.dt_proj.weight	torch.Size([192, 6])	cuda:0	True
+2026-04-15 20:36:54,378 - INFO - temporal_block.mamba_weather.dt_proj.bias	torch.Size([192])	cuda:0	True
+2026-04-15 20:36:54,379 - INFO - temporal_block.mamba_weather.out_proj.weight	torch.Size([96, 192])	cuda:0	True
+2026-04-15 20:36:54,379 - INFO - temporal_block.mamba_weather.weather_proj.weight	torch.Size([64, 64])	cuda:0	True
+2026-04-15 20:36:54,379 - INFO - temporal_block.mamba_weather.weather_proj.bias	torch.Size([64])	cuda:0	True
+2026-04-15 20:36:54,379 - INFO - temporal_block.feed_forward.0.weight	torch.Size([384, 96])	cuda:0	True
+2026-04-15 20:36:54,379 - INFO - temporal_block.feed_forward.0.bias	torch.Size([384])	cuda:0	True
+2026-04-15 20:36:54,379 - INFO - temporal_block.feed_forward.3.weight	torch.Size([96, 384])	cuda:0	True
+2026-04-15 20:36:54,379 - INFO - temporal_block.feed_forward.3.bias	torch.Size([96])	cuda:0	True
+2026-04-15 20:36:54,379 - INFO - temporal_block.ff_norm.weight	torch.Size([96])	cuda:0	True
+2026-04-15 20:36:54,379 - INFO - temporal_block.ff_norm.bias	torch.Size([96])	cuda:0	True
+2026-04-15 20:36:54,379 - INFO - spatial_block.layer_norm.weight	torch.Size([96])	cuda:0	True
+2026-04-15 20:36:54,379 - INFO - spatial_block.layer_norm.bias	torch.Size([96])	cuda:0	True
+2026-04-15 20:36:54,379 - INFO - spatial_block.mamba_weather.A_log	torch.Size([192, 32])	cuda:0	True
+2026-04-15 20:36:54,379 - INFO - spatial_block.mamba_weather.D	torch.Size([192])	cuda:0	True
+2026-04-15 20:36:54,379 - INFO - spatial_block.mamba_weather.in_proj.weight	torch.Size([384, 96])	cuda:0	True
+2026-04-15 20:36:54,379 - INFO - spatial_block.mamba_weather.conv1d.weight	torch.Size([192, 1, 4])	cuda:0	True
+2026-04-15 20:36:54,379 - INFO - spatial_block.mamba_weather.conv1d.bias	torch.Size([192])	cuda:0	True
+2026-04-15 20:36:54,379 - INFO - spatial_block.mamba_weather.x_proj.weight	torch.Size([70, 256])	cuda:0	True
+2026-04-15 20:36:54,379 - INFO - spatial_block.mamba_weather.dt_proj.weight	torch.Size([192, 6])	cuda:0	True
+2026-04-15 20:36:54,379 - INFO - spatial_block.mamba_weather.dt_proj.bias	torch.Size([192])	cuda:0	True
+2026-04-15 20:36:54,379 - INFO - spatial_block.mamba_weather.out_proj.weight	torch.Size([96, 192])	cuda:0	True
+2026-04-15 20:36:54,379 - INFO - spatial_block.mamba_weather.weather_proj.weight	torch.Size([64, 64])	cuda:0	True
+2026-04-15 20:36:54,379 - INFO - spatial_block.mamba_weather.weather_proj.bias	torch.Size([64])	cuda:0	True
+2026-04-15 20:36:54,379 - INFO - spatial_block.feed_forward.0.weight	torch.Size([384, 96])	cuda:0	True
+2026-04-15 20:36:54,380 - INFO - spatial_block.feed_forward.0.bias	torch.Size([384])	cuda:0	True
+2026-04-15 20:36:54,380 - INFO - spatial_block.feed_forward.3.weight	torch.Size([96, 384])	cuda:0	True
+2026-04-15 20:36:54,380 - INFO - spatial_block.feed_forward.3.bias	torch.Size([96])	cuda:0	True
+2026-04-15 20:36:54,380 - INFO - spatial_block.ff_norm.weight	torch.Size([96])	cuda:0	True
+2026-04-15 20:36:54,380 - INFO - spatial_block.ff_norm.bias	torch.Size([96])	cuda:0	True
+2026-04-15 20:36:54,380 - INFO - temporal_proj.weight	torch.Size([12, 12])	cuda:0	True
+2026-04-15 20:36:54,380 - INFO - temporal_proj.bias	torch.Size([12])	cuda:0	True
+2026-04-15 20:36:54,380 - INFO - output_proj.weight	torch.Size([1, 96])	cuda:0	True
+2026-04-15 20:36:54,380 - INFO - output_proj.bias	torch.Size([1])	cuda:0	True
+2026-04-15 20:36:54,380 - INFO - final_layer_norm.weight	torch.Size([96])	cuda:0	True
+2026-04-15 20:36:54,380 - INFO - final_layer_norm.bias	torch.Size([96])	cuda:0	True
+2026-04-15 20:36:54,380 - INFO - Total parameter numbers: 562469
+2026-04-15 20:36:54,380 - INFO - You select `adam` optimizer.
+2026-04-15 20:36:54,380 - INFO - You select `cosineannealinglr` lr_scheduler.
+2026-04-15 20:36:54,380 - WARNING - Received none train loss func and will use the loss func defined in the model.
+2026-04-15 20:36:54,380 - INFO - Gradient accumulation steps: 2
+2026-04-15 20:36:54,381 - INFO - FP16 mixed precision training: True
+2026-04-15 20:36:54,381 - INFO - Using torch.cuda.amp.GradScaler for FP16 training
+2026-04-15 20:36:54,381 - INFO - Enabled cuDNN benchmark mode
+2026-04-15 20:36:54,381 - INFO - Enabled TF32 for faster training on Ampere GPUs
+2026-04-15 20:36:54,381 - INFO - Executor 已初始化 GPU 数据预加载功能（PEMSD4 专用）
+2026-04-15 20:36:54,381 - INFO - Updated visualization directory from ./libcity/cache/W001/visualization to ./libcity/cache/W001/evaluations/eval_20260415_203640/visualizations
+2026-04-15 20:36:54,381 - INFO - Executor type: TrafficStateExecutorOptimized
+2026-04-15 20:36:54,381 - INFO - Executor has visualization_dir: True
+2026-04-15 20:36:54,381 - INFO - Final executor.visualization_dir: ./libcity/cache/W001/evaluations/eval_20260415_203640/visualizations
+2026-04-15 20:36:54,381 - INFO - Visualization directory exists: ./libcity/cache/W001/evaluations/eval_20260415_203640/visualizations
+2026-04-15 20:36:54,400 - INFO - 已恢复梯度缩放器状态
+2026-04-15 20:36:54,400 - INFO - 已恢复学习率调度器状态 (当前学习率: 0.000043)
+2026-04-15 20:36:54,400 - INFO - 已恢复最佳epoch记录: 85
+2026-04-15 20:36:54,400 - INFO - 已恢复最小验证损失: 3.0551
+2026-04-15 20:36:54,400 - INFO - 已恢复early stopping等待计数: 0
+2026-04-15 20:36:54,400 - INFO - Loaded model at 85
+2026-04-15 20:36:54,401 - INFO - Starting evaluation...
+2026-04-15 20:36:54,401 - INFO - Evaluating each channel separately...
+2026-04-15 20:36:54,401 - INFO - Dataset has 1 output channels
+2026-04-15 20:36:54,401 - INFO - Evaluating channel 1/1
+2026-04-15 20:36:54,401 - INFO - Evaluating channel_0 (index 0)...
+2026-04-15 20:37:33,154 - INFO - Saved channel_0 predictions to ./libcity/cache/W001/evaluations/eval_20260415_203640/per_channel/2026_04_15_20_37_28_MCSTWeather_METR_LA_channel_0_predictions.npz
+2026-04-15 20:37:33,156 - ERROR - Failed to evaluate channel_0: Could not infer dtype of numpy.float32
+2026-04-15 20:37:33,157 - INFO - Evaluating all channels together (standard)...
+2026-04-15 20:37:33,157 - ERROR - Error during model evaluation: name 'evaluate_with_batch_timing' is not defined
