@@ -69,6 +69,7 @@ class TrafficStateDataset(AbstractDataset):
         self.calculate_weight_adj = self.config.get('calculate_weight_adj', False)
         self.weight_adj_epsilon = self.config.get('weight_adj_epsilon', 0.1)
         self.distance_inverse = self.config.get('distance_inverse', False)
+        self.timestamp = self.config.get('timestamp', False)
 
         # 初始化
         self.data = None
@@ -283,6 +284,57 @@ class TrafficStateDataset(AbstractDataset):
         data = np.array(data, dtype=np.float64)  # (len(self.geo_ids), len_time, feature_dim)
         data = data.swapaxes(0, 1)  # (len_time, len(self.geo_ids), feature_dim)
         self._logger.info("Loaded file " + filename + '.dyna' + ', shape=' + str(data.shape))
+        return data
+
+    def _load_dyna_3d_time(self, filename):
+        """
+        加载.dyna文件，格式[dyna_id, type, time, entity_id, properties(若干列)],
+        .geo文件中的id顺序应该跟.dyna中一致,
+        其中全局参数`data_col`用于指定需要加载的数据的列，不设置则默认全部加载,
+        在特征列后增加一列，记录时间步对应数字（从0到T-1）
+
+        Args:
+            filename(str): 数据文件名，不包含后缀
+
+        Returns:
+            np.ndarray: 数据数组, 3d-array: (len_time, num_nodes, feature_dim+1)
+        """
+        # 加载数据集
+        self._logger.info("Loading file " + filename + '.dyna')
+        dynafile = pd.read_csv(self.data_path + filename + '.dyna')
+        if self.data_col != '':  # 根据指定的列加载数据集
+            if isinstance(self.data_col, list):
+                data_col = self.data_col.copy()
+            else:  # str
+                data_col = [self.data_col].copy()
+            data_col.insert(0, 'time')
+            data_col.insert(1, 'entity_id')
+            dynafile = dynafile[data_col]
+        else:  # 不指定则加载所有列
+            dynafile = dynafile[dynafile.columns[2:]]  # 从feature_dim第1列开始
+        # 求时间序列
+        self.timesolts = list(dynafile['time'][:int(dynafile.shape[0] / len(self.geo_ids))])
+        self.idx_of_timesolts = dict()
+        if not dynafile['time'].isna().any():  # 时间没有空值
+            self.timesolts = list(map(lambda x: x.replace('T', ' ').replace('Z', ''), self.timesolts))
+            self.timesolts = np.array(self.timesolts, dtype='datetime64[ns]')
+            for idx, _ts in enumerate(self.timesolts):
+                self.idx_of_timesolts[_ts] = idx
+        # 转3-d数组
+        feature_dim = len(dynafile.columns) - 2
+        df = dynafile[dynafile.columns[-feature_dim:]]
+        len_time = len(self.timesolts)
+        data = []
+        for i in range(0, df.shape[0], len_time):
+            data.append(df[i:i + len_time].values)
+        data = np.array(data, dtype=np.float64)  # (len(self.geo_ids), len_time, feature_dim)
+        data = data.swapaxes(0, 1)  # (len_time, len(self.geo_ids), feature_dim)
+        # 在特征列后增加时间步索引列
+        time_indices = np.arange(len_time).reshape(len_time, 1, 1)
+        time_indices = np.tile(time_indices, (1, data.shape[1], 1))
+        data = np.concatenate([data, time_indices], axis=-1)  # (len_time, num_nodes, feature_dim+1)
+        self._logger.info("Loaded file " + filename + '.dyna' + ', shape=' + str(data.shape))
+        self.timestamp = True
         return data
 
     def _load_grid_3d(self, filename):
@@ -837,8 +889,7 @@ class TrafficStateDataset(AbstractDataset):
 
         if self.cache_dataset:
             ensure_dir(self.cache_file_folder)
-            np.savez_compressed(
-                self.cache_file_name,
+            kwargs = dict(
                 x_train=x_train,
                 y_train=y_train,
                 x_test=x_test,
@@ -846,6 +897,13 @@ class TrafficStateDataset(AbstractDataset):
                 x_val=x_val,
                 y_val=y_val,
             )
+            if self.timestamp:
+                kwargs['start_time'] = np.array(str(self.timesolts[0])) if hasattr(self, 'timesolts') and len(self.timesolts) > 0 else np.array('')
+                kwargs['total_time_steps'] = np.array(len(self.timesolts)) if hasattr(self, 'timesolts') else np.array(0)
+                kwargs['time_intervals'] = np.array(self.time_intervals)
+                self._logger.info('Saving timestamp info to cache: start_time={}, total_time_steps={}, time_intervals={}'.format(
+                    kwargs['start_time'], kwargs['total_time_steps'], kwargs['time_intervals']))
+            np.savez_compressed(self.cache_file_name, **kwargs)
             self._logger.info('Saved at ' + self.cache_file_name)
         return x_train, y_train, x_val, y_val, x_test, y_test
 
@@ -886,6 +944,15 @@ class TrafficStateDataset(AbstractDataset):
         y_test = cat_data['y_test']
         x_val = cat_data['x_val']
         y_val = cat_data['y_val']
+        if self.timestamp:
+            if 'start_time' in cat_data and 'total_time_steps' in cat_data and 'time_intervals' in cat_data:
+                self.timesolts = [str(cat_data['start_time'].item())]
+                self.total_time_steps = int(cat_data['total_time_steps'].item())
+                self.time_intervals = int(cat_data['time_intervals'].item())
+                self._logger.info('Loaded timestamp info from cache: start_time={}, total_time_steps={}, time_intervals={}'.format(
+                    self.timesolts[0], self.total_time_steps, self.time_intervals))
+            else:
+                self._logger.warning('timestamp=True but cached file does not contain timestamp info.')
         self._logger.info("train\t" + "x: " + str(x_train.shape) + ", y: " + str(y_train.shape))
         self._logger.info("eval\t" + "x: " + str(x_val.shape) + ", y: " + str(y_val.shape))
         self._logger.info("test\t" + "x: " + str(x_test.shape) + ", y: " + str(y_test.shape))

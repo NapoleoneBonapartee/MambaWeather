@@ -199,6 +199,15 @@ class MCSTWeather(AbstractTrafficStateModel):
         self.feature_dim = self.data_feature.get('feature_dim', 1)
         self.output_dim = self.data_feature.get('output_dim', 1)
         
+        # 时间相关特征（从dataset传入）
+        self.start_time = self.data_feature.get('start_time', None)
+        self.total_time_steps = self.data_feature.get('total_time_steps', None)
+        self.time_intervals = self.config.get('time_intervals', 300)
+        self.has_time_column = self.start_time is not None and self.total_time_steps is not None
+        if self.has_time_column:
+            # 输入特征中最后一列为时间步索引，需要去掉后再投影
+            self.feature_dim = self.feature_dim - 1
+        
         # 模型配置
         self.input_window = config.get('input_window', 12)
         self.output_window = config.get('output_window', 12)
@@ -348,6 +357,39 @@ class MCSTWeather(AbstractTrafficStateModel):
             self._logger.warning(f"Weather file not found: {self.weather_file}")
             self.weather_processor = None
     
+    def _extract_timestamps_from_x(self, x):
+        """
+        从模型输入x中取出时间步对应数字，生成实际时间戳
+        Args:
+            x: (B, input_window, num_nodes, feature_dim) 包含时间步列
+        Returns:
+            list of pd.Timestamp or None
+        """
+        if not self.has_time_column:
+            return None
+        
+        # 取出最后一个特征列（时间步索引），取第一个节点即可（所有节点相同）
+        time_indices = x[:, :, 0, -1].detach().cpu().numpy()  # (B, input_window)
+        
+        # 如果有外部归一化器，对时间步索引进行反归一化
+        ext_scaler = self.data_feature.get('ext_scaler', None)
+        if ext_scaler is not None and hasattr(ext_scaler, 'inverse_transform'):
+            time_indices_flat = time_indices.reshape(-1, 1)
+            time_indices_flat = ext_scaler.inverse_transform(time_indices_flat)
+            time_indices = time_indices_flat.reshape(time_indices.shape)
+        
+        time_indices = np.round(time_indices).astype(np.int64)
+        
+        base_time = pd.Timestamp(self.start_time)
+        interval_minutes = self.time_intervals / 60.0
+        
+        timestamps = []
+        for b in range(time_indices.shape[0]):
+            for idx in time_indices[b]:
+                timestamps.append(base_time + pd.Timedelta(minutes=int(idx * interval_minutes)))
+        
+        return timestamps
+    
     def _precompute_time_embeddings(self):
         """预计算时间嵌入索引"""
         if self.add_time_in_day:
@@ -389,15 +431,24 @@ class MCSTWeather(AbstractTrafficStateModel):
         weather_tensor = torch.tensor(weather_features, dtype=torch.float32, device=self.device)
         
         # 投影到嵌入维度
-        weather_embed = self.weather_feature_proj(weather_tensor)  # (input_window, weather_embed_dim)
+        weather_embed = self.weather_feature_proj(weather_tensor)  # (num_timestamps, weather_embed_dim)
         
-        # 扩展到batch和nodes维度
-        weather_embed = weather_embed.unsqueeze(0).unsqueeze(2)  # (1, input_window, 1, weather_embed_dim)
-        weather_embed = weather_embed.expand(batch_size, -1, self.num_nodes, -1)  # (B, L, N, D_w)
+        # 根据timestamps维度reshape并扩展到batch和nodes维度
+        if weather_embed.shape[0] == batch_size * self.input_window:
+            weather_embed = weather_embed.reshape(batch_size, self.input_window, self.weather_embed_dim)
+        elif weather_embed.shape[0] == self.input_window:
+            weather_embed = weather_embed.unsqueeze(0).expand(batch_size, -1, -1)
+        else:
+            raise ValueError(f"Unexpected weather_embed shape after projection: {weather_embed.shape}, "
+                             f"expected ({batch_size * self.input_window}, {self.weather_embed_dim}) or "
+                             f"({self.input_window}, {self.weather_embed_dim})")
+        weather_embed = weather_embed.unsqueeze(2).expand(-1, -1, self.num_nodes, -1)  # (B, L, N, D_w)
         
         # 空间扩展（为每个节点学习不同的天气影响）
         B, L, N, D = weather_embed.shape
         weather_embed = weather_embed.reshape(B * L * N, D)
+        
+        #不一定有用，可以通过实验验证效果。
         weather_embed = self.weather_spatial_expand(weather_embed)
         weather_embed = weather_embed.reshape(B, L, N, -1)
         
@@ -415,13 +466,13 @@ class MCSTWeather(AbstractTrafficStateModel):
         x = batch['X'].to(self.device)  # (B, input_window, num_nodes, feature_dim)
         batch_size = x.shape[0]
         
-        # 获取时间戳（如果有）- Batch对象使用.data字典访问
-        timestamps = batch.data.get('timestamps', None)
-        if(timestamps is None):
-            self._logger.info('MCSTWeather, timestamps is None.')
-        else:
-            self._logger.info('MCSTWeather, timestamps is not None.')
-            
+        # 从x中提取时间戳（最后一列为时间步索引）
+        timestamps = self._extract_timestamps_from_x(x)
+        
+        # 去掉时间步列，恢复原始特征维度
+        if self.has_time_column:
+            x = x[..., :-1]
+        
         # 特征提取
         features = []
         

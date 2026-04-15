@@ -7,6 +7,9 @@ class TrafficStatePointDataset(TrafficStateDataset):
 
     def __init__(self, config):
         super().__init__(config)
+        # 当启用timestamp时，修改缓存文件名避免与不带时间戳的数据冲突
+        if self.timestamp:
+            self.parameters_str = self.parameters_str + '_timestamp'
         self.cache_file_name = os.path.join('./libcity/cache/dataset_cache/',
                                             'point_based_{}.npz'.format(self.parameters_str))
 
@@ -36,6 +39,8 @@ class TrafficStatePointDataset(TrafficStateDataset):
         Returns:
             np.ndarray: 数据数组, 3d-array (len_time, num_nodes, feature_dim)
         """
+        if self.config.get('model') == 'MCSTWeather':
+            return super()._load_dyna_3d_time(filename)
         return super()._load_dyna_3d(filename)
 
     def _add_external_information(self, df, ext_data=None):
@@ -59,6 +64,19 @@ class TrafficStatePointDataset(TrafficStateDataset):
         Returns:
             dict: 包含数据集的相关特征的字典
         """
-        return {"scaler": self.scaler, "adj_mx": self.adj_mx, "ext_dim": self.ext_dim,
-                "num_nodes": self.num_nodes, "feature_dim": self.feature_dim,
-                "output_dim": self.output_dim, "num_batches": self.num_batches}
+        features = {"scaler": self.scaler, "adj_mx": self.adj_mx, "ext_dim": self.ext_dim,
+                    "num_nodes": self.num_nodes, "feature_dim": self.feature_dim,
+                    "output_dim": self.output_dim, "num_batches": self.num_batches}
+        # 当启用timestamp时，传递时间相关信息给模型
+        if self.timestamp:
+            if hasattr(self, 'timesolts') and len(self.timesolts) > 0:
+                features["start_time"] = str(self.timesolts[0])
+            if hasattr(self, 'total_time_steps'):
+                features["total_time_steps"] = self.total_time_steps
+            elif hasattr(self, 'timesolts'):
+                features["total_time_steps"] = len(self.timesolts)
+            if hasattr(self, 'time_intervals'):
+                features["time_intervals"] = self.time_intervals
+            if hasattr(self, 'ext_scaler'):
+                features["ext_scaler"] = self.ext_scaler
+        return features
