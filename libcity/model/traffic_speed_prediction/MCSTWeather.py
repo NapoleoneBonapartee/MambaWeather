@@ -181,6 +181,31 @@ class WeatherProcessor:
         return self
 
 
+class AdaptiveFusion(nn.Module):
+    """
+    输入条件化的时-空特征融合模块。
+    将投影后的原始输入 x、时序输出 temporal、空间输出 spatial 拼接后通过 MLP 学习融合表示。
+    不使用门控或归一化权重，避免此消彼长；同时通过残差连接保留原始输入信息。
+    """
+    def __init__(self, d_model, dropout=0.1):
+        super().__init__()
+        self.fusion_mlp = nn.Sequential(
+            nn.Linear(d_model * 3, d_model * 2),
+            nn.LayerNorm(d_model * 2),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(d_model * 2, d_model)
+        )
+        self.input_proj = nn.Linear(d_model, d_model)
+    
+    def forward(self, x_input, x_temporal, x_spatial):
+        # x_input / x_temporal / x_spatial: (B, L, N, d_model)
+        combined = torch.cat([x_input, x_temporal, x_spatial], dim=-1)
+        out = self.fusion_mlp(combined)
+        out = out + self.input_proj(x_input)
+        return out
+
+
 class MCSTWeather(AbstractTrafficStateModel):
     """
     MCST-Mamba with Weather Integration
@@ -308,8 +333,15 @@ class MCSTWeather(AbstractTrafficStateModel):
             dropout=self.dropout
         )
         
-        # 组合权重
+        # 融合模式配置
+        self.fusion_mode = config.get('fusion_mode', 'weighted')
+        
+        # 组合权重（用于 weighted 模式）
         self.combine_weights = nn.Parameter(torch.randn(2, self.d_model))
+        
+        # 自适应融合模块（用于 adaptive 模式）
+        if self.fusion_mode == 'adaptive':
+            self.adaptive_fusion = AdaptiveFusion(self.d_model, self.dropout)
         
         # 时序投影：将 input_window 映射到 output_window
         self.temporal_proj = nn.Linear(self.input_window, self.output_window)
@@ -532,7 +564,10 @@ class MCSTWeather(AbstractTrafficStateModel):
         x_spatial = x_spatial.reshape(batch_size, self.input_window, self.num_nodes, self.d_model)
         
         # 组合时序和空间输出
-        x_combined = x_temporal * self.combine_weights[0] + x_spatial * self.combine_weights[1]
+        if self.fusion_mode == 'adaptive':
+            x_combined = self.adaptive_fusion(x, x_temporal, x_spatial)
+        else:
+            x_combined = x_temporal * self.combine_weights[0] + x_spatial * self.combine_weights[1]
         
         # 最终处理和输出投影
         x_out = self.final_layer_norm(x_combined)  # (B, input_window, N, d_model)

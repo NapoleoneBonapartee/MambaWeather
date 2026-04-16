@@ -30,6 +30,11 @@ if __name__ == '__main__':
     parser.add_argument('--resume', type=str, default=None,
                         help='resume training')
 
+    # 融合模式参数
+    parser.add_argument('--fusion_mode', type=str, default='weighted',
+                        choices=['weighted', 'adaptive'],
+                        help='temporal-spatial fusion mode: weighted or adaptive')
+
     # 增加其他可选的参数
     add_general_args(parser)
     # 解析参数

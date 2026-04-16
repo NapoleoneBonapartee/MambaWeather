@@ -17,10 +17,11 @@ config = {
     'train_rate': 0.7,
     'eval_rate': 0.1,
     'input_window': 12,
-    'output_windows': 3,
+    'output_window': 12,
     'null_value': 0,
-    'metrics': ['MAE', 'MAPE', 'MSE', 'RMSE', 'masked_MAE',
-                'masked_MAPE', 'masked_MSE', 'masked_RMSE', 'R2', 'EVAR']
+    'metrics': ['masked_MAE']
+    # 'metrics': ['MAE', 'MAPE', 'MSE', 'RMSE', 'masked_MAE',
+    #             'masked_MAPE', 'masked_MSE', 'masked_RMSE', 'R2', 'EVAR']
 }
 
 

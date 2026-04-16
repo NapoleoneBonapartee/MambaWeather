@@ -7,6 +7,7 @@ import pandas as pd
 from statsmodels.tools.sm_exceptions import ConvergenceWarning
 from tqdm import tqdm
 from statsmodels.tsa.arima.model import ARIMA
+from multiprocessing import Pool, cpu_count
 
 # 抑制 statsmodels 的警告信息
 warnings.filterwarnings('ignore', category=UserWarning, module='statsmodels')
@@ -28,7 +29,7 @@ config = {
     'train_rate': 0.7,
     'eval_rate': 0.1,
     'input_window': 12,
-    'output_window': 3,
+    'output_window': 12,
     'metrics': ['masked_MAE']
     # 'metrics': ['MAE', 'MAPE', 'MSE', 'RMSE', 'masked_MAE',
     #             'masked_MAPE', 'masked_MSE', 'masked_RMSE', 'R2', 'EVAR']
@@ -82,14 +83,13 @@ def get_data(dataset):
     return data
 
 
-# Try to find the best (p,d,q) parameters for ARIMA
-def order_select_pred(data):
-    # data: (T,)
-    res = ARIMA(data, order=(0, 0, 0)).fit()
+# ============== 多进程 Worker 函数 ==============
+
+def _order_select_worker(args):
+    """在训练序列上搜索最佳 (p,d,q)"""
+    seq_train, p_range, d_range, q_range = args
+    res = ARIMA(seq_train, order=(0, 0, 0)).fit()
     bic = res.bic
-    p_range = config.get('p_range', [0, 4])
-    d_range = config.get('d_range', [0, 3])
-    q_range = config.get('q_range', [0, 4])
     with warnings.catch_warnings():
         warnings.simplefilter("error", category=ConvergenceWarning)
         warnings.simplefilter("error", category=RuntimeWarning)
@@ -99,7 +99,7 @@ def order_select_pred(data):
                     if p + d + q > 6:  # 限制复杂度，避免高阶模型拟合过慢
                         continue
                     try:
-                        cur_res = ARIMA(data, order=(p, d, q)).fit()
+                        cur_res = ARIMA(seq_train, order=(p, d, q)).fit()
                     except:
                         continue
                     if cur_res.bic < bic:
@@ -108,37 +108,69 @@ def order_select_pred(data):
     return res.specification['order']
 
 
-def arima(train_data, testx):
-    output_window = config.get('output_window', 3)
-    t_train, n, f = train_data.shape
-    test_size = testx.shape[0]
-
-    # Step 1: Order selection on training data for each node and feature
-    best_orders = np.zeros((n, f), dtype=object)
-    for node in tqdm(range(n), desc='Order selection'):
+def _forecast_worker(args):
+    """对单个 test sample 进行所有节点/特征的 ARIMA 预测"""
+    test_seq, best_orders, output_window = args
+    n, f = best_orders.shape
+    y_pred_sample = np.zeros((output_window, n, f))
+    for node in range(n):
         for feat in range(f):
-            seq_train = train_data[:, node, feat]
-            best_orders[node, feat] = order_select_pred(seq_train)
-
-    # Step 2: Forecast on testx using the selected orders
-    y_pred = np.zeros((test_size, output_window, n, f))
-    for i in tqdm(range(test_size), desc='Forecasting'):
-        for node in range(n):
-            for feat in range(f):
-                seq = testx[i, :, node, feat]  # (input_window,)
-                order = best_orders[node, feat]
+            seq = test_seq[:, node, feat]
+            order = best_orders[node, feat]
+            try:
+                model = ARIMA(seq, order=order).fit()
+                pred = model.forecast(steps=output_window)
+            except:
                 try:
-                    model = ARIMA(seq, order=order).fit()
+                    model = ARIMA(seq, order=(0, 0, 0)).fit()
                     pred = model.forecast(steps=output_window)
                 except:
-                    # fallback: use (0,0,0) or simply repeat mean if fit fails
-                    try:
-                        model = ARIMA(seq, order=(0, 0, 0)).fit()
-                        pred = model.forecast(steps=output_window)
-                    except:
-                        pred = np.ones(output_window) * np.mean(seq)
-                y_pred[i, :, node, feat] = pred
+                    pred = np.ones(output_window) * np.mean(seq)
+            y_pred_sample[:, node, feat] = pred
+    return y_pred_sample
 
+
+# ============== 主预测流程 ==============
+
+def arima_parallel(train_data, testx, n_jobs=None):
+    if n_jobs is None:
+        n_jobs = max(1, cpu_count() - 1)
+
+    output_window = config.get('output_window', 3)
+    t_train, n, f = train_data.shape
+    p_range = config.get('p_range', [0, 4])
+    d_range = config.get('d_range', [0, 3])
+    q_range = config.get('q_range', [0, 4])
+
+    # Step 1: 并行定阶（每个节点/特征一次）
+    order_tasks = [
+        (train_data[:, node, feat], p_range, d_range, q_range)
+        for node in range(n) for feat in range(f)
+    ]
+
+    with Pool(processes=n_jobs) as pool:
+        results = list(tqdm(
+            pool.imap(_order_select_worker, order_tasks),
+            total=len(order_tasks),
+            desc='Order selection'
+        ))
+
+    best_orders = np.array(results, dtype=object).reshape(n, f)
+
+    # Step 2: 并行预测（每个 test sample 一次）
+    forecast_tasks = [
+        (testx[i], best_orders, output_window)
+        for i in range(testx.shape[0])
+    ]
+
+    with Pool(processes=n_jobs) as pool:
+        results = list(tqdm(
+            pool.imap(_forecast_worker, forecast_tasks),
+            total=len(forecast_tasks),
+            desc='Forecasting'
+        ))
+
+    y_pred = np.stack(results, axis=0)  # (test_size, output_window, n, f)
     return y_pred
 
 
@@ -151,9 +183,9 @@ def main():
     train_data = data[:train_size]  # (T_train, N, F)
 
     _, _, testx, testy = preprocess_data(data, config)
-    y_pred = arima(train_data, testx)
+    y_pred = arima_parallel(train_data, testx, n_jobs=None)
     evaluate_model(y_pred=y_pred, y_true=testy, metrics=config['metrics'],
-                   path=config['model']+'_'+config['dataset']+'_metrics.csv')
+                   path=config['model'] + '_' + config['dataset'] + '_metrics.csv')
 
 
 if __name__ == '__main__':

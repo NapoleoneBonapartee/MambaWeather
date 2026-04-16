@@ -55,6 +55,32 @@
                 "PYTHONPATH": "${workspaceFolder}"
             },
             "justMyCode": false
+        },
+        {
+            "name": "HA",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/test/test_HA.py",
+            "args": [],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "justMyCode": false
+        },
+        {
+            "name": "ARIMA",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/test/ARIMA_Optimize.py",
+            "args": [],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "justMyCode": false
         }
     ]
 }
