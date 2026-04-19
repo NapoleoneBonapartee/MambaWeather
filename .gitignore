@@ -1,5 +1,6 @@
 raw_data/
 libcity/cache/
+libcity/log/
 **/__pycache__/
 *.dyna
 *.npz

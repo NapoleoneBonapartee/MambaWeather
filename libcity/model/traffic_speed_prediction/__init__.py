@@ -24,16 +24,13 @@ from libcity.model.traffic_speed_prediction.HIEST import HIEST
 from libcity.model.traffic_speed_prediction.STAEformer import STAEformer
 from libcity.model.traffic_speed_prediction.TESTAM import TESTAM
 from libcity.model.traffic_speed_prediction.MegaCRN import MegaCRN
-from libcity.model.traffic_speed_prediction.MCSTMamba import MCSTMamba
-from libcity.model.traffic_speed_prediction.MCSTMamba_optimized import MCSTMamba_optimized
 from libcity.model.traffic_speed_prediction.MambaWeather import MambaWeather, SimpleMambaWeatherBlock
-from libcity.model.traffic_speed_prediction.MCSTWeather import MCSTWeather
+from libcity.model.traffic_speed_prediction.MambaWeather_Optimized import MambaWeather_Optimized
 
 __all__ = [
-    "MCSTWeather",
+    "MambaWeather_Optimized",
     "MambaWeather",
     "SimpleMambaWeatherBlock",
-    "MCSTMamba_optimized",
     "DCRNN",
     "STGCN",
     "GWNET",
@@ -60,6 +57,5 @@ __all__ = [
     "STAEformer",
     "TESTAM",
     "MegaCRN",
-    "Mamba",
-    "MCSTMamba"
+    "Mamba"
 ]

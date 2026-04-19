@@ -1,8 +1,3 @@
-"""
-MCSTWeather: Multi-Channel Spatio-Temporal Mamba with Weather Integration
-基于 MCSTMamba_optimized，融合天气数据进行交通预测
-"""
-
 import os
 import torch
 import torch.nn as nn
@@ -206,10 +201,10 @@ class AdaptiveFusion(nn.Module):
         return out
 
 
-class MCSTWeather(AbstractTrafficStateModel):
+class MambaWeather_Optimized(AbstractTrafficStateModel):
     """
-    MCST-Mamba with Weather Integration
-    融合天气数据的时空交通预测模型
+    MambaWeather_Optimized: 优化的 MambaWeather 模型
+    将天气嵌入拼接到 x_proj 的输入，使动态参数 B, C, Δ 同时依赖输入序列和天气条件
     """
     
     def __init__(self, config, data_feature):
@@ -310,9 +305,6 @@ class MCSTWeather(AbstractTrafficStateModel):
             # 为每个节点复制天气嵌入
             self.weather_spatial_expand = nn.Linear(self.weather_embed_dim, self.weather_embed_dim)
         
-        # 时空 MambaWeather 块
-        self._logger.info("Building MCSTWeather model with weather integration")
-        
         # 时序处理块
         self.temporal_block = SimpleMambaWeatherBlock(
             d_model=self.d_model,
@@ -358,7 +350,7 @@ class MCSTWeather(AbstractTrafficStateModel):
         # 移动到设备
         self.to(self.device)
         
-        self._logger.info(f"MCSTWeather model initialized with weather_embed_dim={self.weather_embed_dim}")
+        self._logger.info(f"MambaWeather_Optimized model initialized with weather_embed_dim={self.weather_embed_dim}")
     
     def _setup_weather_processor(self):
         """设置天气数据处理器"""
