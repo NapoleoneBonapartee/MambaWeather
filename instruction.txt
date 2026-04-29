@@ -1,6 +1,7 @@
 python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id Weather001
 python run_model.py --task traffic_state_pred --model SimpleMamba --dataset METR_LA --exp_id Simple001
 python run_model.py --task traffic_state_pred --model OnlyMamba --dataset METR_LA --exp_id Mamba001
+python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id Weather001
 python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id WeaAdaptive001 --fusion_mode adaptive
-python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id BiWeather001
-python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id BiWeaAdapt001 --fusion_mode adaptive
+python run_model.py --task traffic_state_pred --model DCRNN --dataset METR_LA --exp_id DCRNN
+python run_model.py --task traffic_state_pred --model STGCN --dataset METR_LA --exp_id STGCN

@@ -547,26 +547,25 @@ class MambaWeather(AbstractTrafficStateModel):
         weather_embed = self._get_weather_embedding(batch_size, timestamps)
         
         # 时序处理：每个节点独立处理
-        # 重塑为 (N, B*L, d_model) 以便高效处理
+        # 重塑为 (N, B*L, d_model) 
         x_temporal = x.permute(2, 0, 1, 3).reshape(self.num_nodes, batch_size * self.input_window, self.d_model)
         
         # 天气嵌入也需要相应重塑
         w_temporal = weather_embed.permute(2, 0, 1, 3).reshape(self.num_nodes, batch_size * self.input_window, self.weather_embed_dim)
-        
-        # 通过时序块
+
         x_temporal = self.temporal_block(x_temporal, w_temporal)
         
         # 重塑回 (B, L, N, d_model)
         x_temporal = x_temporal.reshape(self.num_nodes, batch_size, self.input_window, self.d_model).permute(1, 2, 0, 3)
         
         # 空间处理
-        x_spatial_input = x_temporal.reshape(batch_size * self.input_window, self.num_nodes, self.d_model)
-        w_spatial = weather_embed.reshape(batch_size * self.input_window, self.num_nodes, self.weather_embed_dim)
-        
-        x_spatial = self.spatial_block(x_spatial_input, w_spatial)
-        
-        # 重塑回 (B, L, N, d_model)
-        x_spatial = x_spatial.reshape(batch_size, self.input_window, self.num_nodes, self.d_model)
+        x_spatial = x.permute(1, 0, 2, 3)  # [input_window, batch_size, num_nodes, d_model]
+        x_spatial = x_spatial.reshape(self.input_window, batch_size * self.num_nodes, self.d_model)
+        # 为空间块创建正确的天气嵌入形状
+        w_spatial = weather_embed.permute(1, 0, 2, 3).reshape(self.input_window, batch_size * self.num_nodes, self.weather_embed_dim)
+        x_spatial = self.spatial_block(x_spatial, w_spatial)
+        x_spatial = x_spatial.reshape(self.input_window, batch_size, self.num_nodes, self.d_model)
+        x_spatial = x_spatial.permute(1, 0, 2, 3)
         
         # 组合时序和空间输出
         if self.fusion_mode == 'adaptive':
@@ -577,6 +576,9 @@ class MambaWeather(AbstractTrafficStateModel):
         # 最终处理和输出投影
         x_out = self.final_layer_norm(x_combined)  # (B, input_window, N, d_model)
         x_out = self.output_proj(x_out)  # (B, input_window, N, output_dim)
+
+        # x_out = self.final_layer_norm(x_temporal)
+        # x_out = self.output_proj(x_out) 
         
         # 时序投影：将 input_window 映射到 output_window
         # 转置为 (B, N, output_dim, input_window) -> 投影 -> 转置回 (B, output_window, N, output_dim)
@@ -591,7 +593,7 @@ class MambaWeather(AbstractTrafficStateModel):
         y_true = batch['y']
         if hasattr(y_true, 'to'):
             y_true = y_true.to(self.device)
-        y_predicted = self.forward(batch)
+        y_predicted = self.predict(batch)
         
         # 反归一化
         y_true = self._scaler.inverse_transform(y_true[..., :self.output_dim])
@@ -599,6 +601,16 @@ class MambaWeather(AbstractTrafficStateModel):
         
         # 计算损失，使用MAE是因为同类型默认使用MAE
         return loss.masked_mae_torch(y_predicted, y_true, 0)
+
+    def predict(self, batch):
+        """
+        直接预测未来 output_window 步
+        Args:
+            batch: 包含 'X' 的 Batch 对象
+        Returns:
+            预测结果: (batch_size, output_window, num_nodes, output_dim)
+        """
+        return self.forward(batch)  # forward 直接输出未来预测
 
 
 class SimpleMamba(AbstractTrafficStateModel):
@@ -903,7 +915,7 @@ class SimpleMamba(AbstractTrafficStateModel):
         y_true = batch['y']
         if hasattr(y_true, 'to'):
             y_true = y_true.to(self.device)
-        y_predicted = self.forward(batch)
+        y_predicted = self.predict(batch)
 
         # 反归一化
         y_true = self._scaler.inverse_transform(y_true[..., :self.output_dim])
@@ -911,6 +923,16 @@ class SimpleMamba(AbstractTrafficStateModel):
 
         # 计算损失，使用 MAE
         return loss.masked_mae_torch(y_predicted, y_true, 0)
+
+    def predict(self, batch):
+        """
+        直接预测未来 output_window 步
+        Args:
+            batch: 包含 'X' 的 Batch 对象
+        Returns:
+            预测结果: (batch_size, output_window, num_nodes, output_dim)
+        """
+        return self.forward(batch)  # forward 直接输出未来预测
 
 
 class SimpleMambaBlock(nn.Module):
@@ -1104,7 +1126,7 @@ class OnlyMamba(AbstractTrafficStateModel):
         y_true = batch['y']
         if hasattr(y_true, 'to'):
             y_true = y_true.to(self.device)
-        y_predicted = self.forward(batch)
+        y_predicted = self.predict(batch)
 
         # 反归一化
         y_true = self._scaler.inverse_transform(y_true[..., :self.output_dim])
@@ -1112,4 +1134,14 @@ class OnlyMamba(AbstractTrafficStateModel):
 
         # 计算损失，使用 MAE
         return loss.masked_mae_torch(y_predicted, y_true, 0)
+
+    def predict(self, batch):
+        """
+        直接预测未来 output_window 步
+        Args:
+            batch: 包含 'X' 的 Batch 对象
+        Returns:
+            预测结果: (batch_size, output_window, num_nodes, output_dim)
+        """
+        return self.forward(batch)  # forward 直接输出未来预测
 

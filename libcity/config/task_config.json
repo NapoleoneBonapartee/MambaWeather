@@ -226,6 +226,16 @@
             "CHICAGO_RISK",
             "NYCTAXI20140112_FLOW"
         ],
+        "STGCN": {
+            "dataset_class": "TrafficStatePointDataset",
+            "executor": "TrafficStateExecutorOptimized",
+            "evaluator": "TrafficStateEvaluator"
+        },
+        "GWNET": {
+            "dataset_class": "TrafficStatePointDataset",
+            "executor": "TrafficStateExecutorOptimized",
+            "evaluator": "TrafficStateEvaluator"
+        },        
         "OnlyMamba": {
             "dataset_class": "TrafficStatePointDataset",
             "executor": "TrafficStateExecutorOptimized",
@@ -369,16 +379,6 @@
         "DCRNN": {
             "dataset_class": "TrafficStatePointDataset",
             "executor": "DCRNNExecutor",
-            "evaluator": "TrafficStateEvaluator"
-        },
-        "STGCN": {
-            "dataset_class": "TrafficStatePointDataset",
-            "executor": "TrafficStateExecutor",
-            "evaluator": "TrafficStateEvaluator"
-        },
-        "GWNET": {
-            "dataset_class": "TrafficStatePointDataset",
-            "executor": "TrafficStateExecutor",
             "evaluator": "TrafficStateEvaluator"
         },
         "AGCRN": {

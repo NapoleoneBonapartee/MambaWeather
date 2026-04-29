@@ -1,6 +1,24 @@
 {
     "version": "0.2.0",
     "configurations": [
+                {
+            "name": "Debug GWNET METR_LA",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/run_model.py",
+            "args": [
+                "--task", "traffic_state_pred",
+                "--model", "GWNET",
+                "--dataset", "METR_LA",
+                "--exp_id", "DebugGWNET"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "justMyCode": false
+        },
         {
             "name": "Debug Mamba METR_LA",
             "type": "python",
@@ -42,19 +60,6 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/test/test_HA.py",
-            "args": [],
-            "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}",
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}"
-            },
-            "justMyCode": false
-        },
-        {
-            "name": "ARIMA",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/test/ARIMA_Optimize.py",
             "args": [],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",

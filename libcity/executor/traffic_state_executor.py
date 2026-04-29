@@ -328,16 +328,16 @@ class TrafficStateExecutor(AbstractExecutor):
             batch_mape_list = []
             for batch_idx, batch in enumerate(test_dataloader):
                 try:
-                    # 1. Predict and Scale
+                    # 1. Predict and Scale - 使用predict()保持与验证一致
                     batch.to_tensor(self.device)
-                    output = self.model.forward(batch)
+                    output = self.model.predict(batch)  # 修改这里：使用predict而不是forward
                     # Ensure slicing uses self.output_dim consistently
                     y_true_scaled = self._scaler.inverse_transform(batch['y'][..., :self.output_dim])
                     y_pred_scaled = self._scaler.inverse_transform(output[..., :self.output_dim])
                     
                     # 计算多种损失（不将0视作无效值，使用默认参数）
-                    mae_loss = loss.masked_mae_torch(y_pred_scaled, y_true_scaled.clone())
-                    rmse_loss = loss.masked_rmse_torch(y_pred_scaled, y_true_scaled.clone())
+                    mae_loss = loss.masked_mae_torch(y_pred_scaled, y_true_scaled.clone(), 0)
+                    rmse_loss = loss.masked_rmse_torch(y_pred_scaled, y_true_scaled.clone(), 0)
                     mape_loss = loss.masked_mape_torch(y_pred_scaled, y_true_scaled.clone(), 0, eps=1e-1)
                     
                     batch_mae_list.append(mae_loss.item())

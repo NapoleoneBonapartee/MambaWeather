@@ -136,6 +136,7 @@ class MambaWeatherBlock(nn.Module):
         
         # 如果 weather_embed 为 None，创建零向量作为默认值
         if weather_embed is None:
+            print("weather_embed is None, create zero vector as default")
             weather_embed = torch.zeros(
                 batch, seqlen, self.weather_embed_dim,
                 dtype=hidden_states.dtype,
@@ -215,6 +216,7 @@ class SimpleMambaWeatherBlock(nn.Module):
     
     def __init__(self, d_model=96, d_state=32, d_conv=4, expand=2, weather_embed_dim=None, dropout=0.1):
         super().__init__()
+        self.weather_embed_dim = weather_embed_dim
         self.layer_norm = nn.LayerNorm(d_model)
         self.mamba_weather = MambaWeatherBlock(
             d_model=d_model,
@@ -264,15 +266,3 @@ class SimpleMambaWeatherBlock(nn.Module):
         
         return x
     
-    def calculate_loss(self, batch):
-        y_true = batch['y']
-        if hasattr(y_true, 'to'):
-            y_true = y_true.to(self.device)
-        y_predicted = self.forward(batch['X'])
-        
-        # 反归一化
-        y_true = self._scaler.inverse_transform(y_true[..., :self.output_dim])
-        y_predicted = self._scaler.inverse_transform(y_predicted[..., :self.output_dim])
-        
-        # 计算损失
-        return loss.masked_mae_torch(y_predicted, y_true)

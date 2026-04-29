@@ -128,7 +128,7 @@ class GWNET(AbstractTrafficStateModel):
 
         self.apt_layer = config.get('apt_layer', True)
         if self.apt_layer:
-            self.layers = np.int(
+            self.layers = int(
                 np.round(np.log((((self.input_window - 1) / (self.blocks * (self.kernel_size - 1))) + 1)) / np.log(2)))
             print('# of layers change to %s' % self.layers)
 
@@ -146,7 +146,7 @@ class GWNET(AbstractTrafficStateModel):
                                     kernel_size=(1, 1))
 
         self.cal_adj(self.adjtype)
-        self.supports = [torch.tensor(i).to(self.device) for i in self.adj_mx]
+        self.supports = [torch.from_numpy(np.asarray(i, dtype=np.float32)).to(self.device) for i in self.adj_mx]
         if self.randomadj:
             self.aptinit = None
         else:
@@ -188,16 +188,16 @@ class GWNET(AbstractTrafficStateModel):
                                                    out_channels=self.dilation_channels,
                                                    kernel_size=(1, self.kernel_size), dilation=new_dilation))
                 # print(self.filter_convs[-1])
-                self.gate_convs.append(nn.Conv1d(in_channels=self.residual_channels,
+                self.gate_convs.append(nn.Conv2d(in_channels=self.residual_channels,
                                                  out_channels=self.dilation_channels,
                                                  kernel_size=(1, self.kernel_size), dilation=new_dilation))
                 # print(self.gate_convs[-1])
                 # 1x1 convolution for residual connection
-                self.residual_convs.append(nn.Conv1d(in_channels=self.dilation_channels,
+                self.residual_convs.append(nn.Conv2d(in_channels=self.dilation_channels,
                                                      out_channels=self.residual_channels,
                                                      kernel_size=(1, 1)))
                 # 1x1 convolution for skip connection
-                self.skip_convs.append(nn.Conv1d(in_channels=self.dilation_channels,
+                self.skip_convs.append(nn.Conv2d(in_channels=self.dilation_channels,
                                                  out_channels=self.skip_channels,
                                                  kernel_size=(1, 1)))
                 self.bn.append(nn.BatchNorm2d(self.residual_channels))
