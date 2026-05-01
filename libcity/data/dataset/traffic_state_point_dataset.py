@@ -39,7 +39,8 @@ class TrafficStatePointDataset(TrafficStateDataset):
         Returns:
             np.ndarray: 数据数组, 3d-array (len_time, num_nodes, feature_dim)
         """
-        if self.config.get('model') == 'MCSTWeather':
+        if self.config.get('use_weather') == True:
+            print("loading dyna with time")
             return super()._load_dyna_3d_time(filename)
         return super()._load_dyna_3d(filename)
 

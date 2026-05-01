@@ -35,6 +35,6 @@
     "saved_model": true,
     "load_best_epoch": true,
     "hyper_tune": false,
-    "fp16": true,
+    "fp16": false,
     "gradient_accumulation_steps": 1
 }

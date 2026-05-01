@@ -1,3 +1,5 @@
 python run_model.py --task traffic_state_pred --model DCRNN --dataset METR_LA --exp_id DCRNN
 python run_model.py --task traffic_state_pred --model STGCN --dataset METR_LA --exp_id STGCN
 python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id Mamba
+python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id Mamba_ExeOp
+python run_model.py --task traffic_state_pred --model MCSTMamba --dataset METR_LA --exp_id MCST

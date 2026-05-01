@@ -7,9 +7,8 @@ import numpy as np
 from logging import getLogger
 from libcity.model import loss
 from libcity.model.abstract_traffic_state_model import AbstractTrafficStateModel
+from mamba_ssm import Mamba as MambaSSM
 
-from libcity.model.traffic_speed_prediction.MambaWeatherBlock import SimpleMambaWeatherBlock
-from mamba_ssm.modules.mamba_simple import Mamba
 
 
 class WeatherProcessor:
@@ -140,9 +139,9 @@ class WeatherProcessor:
         获取指定时间戳的天气特征
         处理时间戳可能超出天气数据范围的情况
         Args:
-            timestamps: list or array of timestamps
+            timestamps: 时间戳列表或数组
         Returns:
-            numpy array of shape (len(timestamps), num_weather_features)
+            形状为 (len(timestamps), num_weather_features) 的numpy数组
         """
         if self.weather_features is None:
             raise ValueError("Weather features not built. Call load_data() first.")
@@ -177,61 +176,58 @@ class WeatherProcessor:
         return self
 
 
-class AdaptiveFusion(nn.Module):
-    """
-    输入条件化的时-空特征融合模块（修正版）。
-    x_input 仅作为条件生成调制向量，不直接成为残差主体；
-    残差来自时空特征本身，保证融合结果以时-空信息为根基。
-    """
-    def __init__(self, d_model, dropout=0.1):
+
+class SimpleMambaBlock(nn.Module):
+    def __init__(self, d_model, d_state, d_conv, expand, dropout=0.1):
         super().__init__()
-
-        self.guide = nn.Sequential(
-            nn.Linear(d_model, d_model),
-            nn.ReLU(),
-            nn.Dropout(dropout)
+        self.layer_norm = nn.LayerNorm(d_model)
+        self.mamba = MambaSSM(
+            d_model=d_model,
+            d_state=d_state,
+            d_conv=d_conv,
+            expand=expand
         )
-        
-        self.fusion_mlp = nn.Sequential(
-            nn.Linear(d_model * 3, d_model * 2),
-            nn.LayerNorm(d_model * 2),
-            nn.ReLU(),
+        self.dropout = nn.Dropout(dropout)
+        self.feed_forward = nn.Sequential(
+            nn.Linear(d_model, d_model * 4),
+            nn.GELU(),
             nn.Dropout(dropout),
-            nn.Linear(d_model * 2, d_model)
+            nn.Linear(d_model * 4, d_model)
         )
-        
-        self.residual_proj = nn.Linear(d_model * 2, d_model)
-
-    def forward(self, x_input, x_temporal, x_spatial):
-        # x_input: (B, L, N, d_model)
-        guide_vec = self.guide(x_input)  # 条件提示向量
-        
-        combined = torch.cat([x_temporal, x_spatial, guide_vec], dim=-1)
-        fused = self.fusion_mlp(combined)
-        
-        # 残差连接：锚定在时空特征上，x_input 不直接加回
-        residual = self.residual_proj(torch.cat([x_temporal, x_spatial], dim=-1))
-        return fused + residual
-
-
-class MambaWeather(AbstractTrafficStateModel):
-    """
-    MambaWeather_Optimized: 优化的 MambaWeather 模型
-    将天气嵌入拼接到 x_proj 的输入，使动态参数 B, C, Δ 同时依赖输入序列和天气条件
-    """
+        self.ff_norm = nn.LayerNorm(d_model)
+        self.ff_dropout = nn.Dropout(dropout)
     
+    def forward(self, x):
+        # 带残差连接的Mamba块
+        residual = x
+        x = self.layer_norm(x)
+        x = self.mamba(x)
+        x = self.dropout(x)
+        x = x + residual
+        
+        # 带残差连接的前馈网络
+        residual = x
+        x = self.ff_norm(x)
+        x = self.feed_forward(x)
+        x = self.ff_dropout(x)
+        x = x + residual
+        
+        return x
+
+
+class MCSTMamba(AbstractTrafficStateModel):
     def __init__(self, config, data_feature):
         super().__init__(config, data_feature)
-        
+
         # 保存 config 供后续使用
         self.config = config
-        
-        # 基础数据特征
+
+        # 首先获取数据特征以确保num_nodes已定义
         self._scaler = self.data_feature.get('scaler')
         self.num_nodes = self.data_feature.get('num_nodes', 1)
         self.feature_dim = self.data_feature.get('feature_dim', 1)
         self.output_dim = self.data_feature.get('output_dim', 1)
-        
+
         # 时间相关特征（从dataset传入）
         self.start_time = self.data_feature.get('start_time', None)
         self.total_time_steps = self.data_feature.get('total_time_steps', None)
@@ -240,31 +236,44 @@ class MambaWeather(AbstractTrafficStateModel):
         if self.has_time_column:
             # 输入特征中最后一列为时间步索引，需要去掉后再投影
             self.feature_dim = self.feature_dim - 1
-        
-        # 模型配置
+
+        # 获取模型配置
         self.input_window = config.get('input_window', 12)
         self.output_window = config.get('output_window', 12)
         self.device = config.get('device', torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'))
         self._logger = getLogger()
         
-        # 时间特征配置
+        # 添加时间处理参数
         self.add_time_in_day = config.get("add_time_in_day", False)
         self.add_day_in_week = config.get("add_day_in_week", False)
         self.steps_per_day = config.get("steps_per_day", 288)
         
-        # 嵌入维度配置
+        # 从配置中获取嵌入维度
         self.input_embedding_dim = config.get('input_embedding_dim', 24)
         self.tod_embedding_dim = config.get('tod_embedding_dim', 24) if self.add_time_in_day else 0
         self.dow_embedding_dim = config.get('dow_embedding_dim', 24) if self.add_day_in_week else 0
         self.spatial_embedding_dim = config.get('spatial_embedding_dim', 16)
         self.adaptive_embedding_dim = config.get('adaptive_embedding_dim', 80)
-        
+
         # 天气相关配置
         self.weather_embed_dim = config.get('weather_embed_dim', 64)
         self.weather_file = config.get('weather_file', None)  # 天气文件路径
         self.use_weather = config.get('use_weather', True)
+
+        self.weather_processor = None
+        if self.use_weather:
+            self._setup_weather_processor()
         
-        # 计算模型总维度（不含天气，天气单独处理）
+        # 天气特征嵌入层
+        if self.use_weather and self.weather_processor is not None:
+            self.weather_feature_proj = nn.Sequential(
+                nn.Linear(self.weather_processor.num_weather_features, self.weather_embed_dim * 2),
+                nn.ReLU(),
+                nn.Dropout(self.dropout),
+                nn.Linear(self.weather_embed_dim * 2, self.weather_embed_dim)
+            )
+        
+        # 计算模型维度（总嵌入大小）
         self.model_dim = (
             self.input_embedding_dim +
             self.tod_embedding_dim +
@@ -281,90 +290,64 @@ class MambaWeather(AbstractTrafficStateModel):
         if self.add_day_in_week:
             self.dow_embedding = nn.Embedding(7, self.dow_embedding_dim)
         
-        # 空间嵌入
+        # 初始化空间嵌入
         self.spatial_embedding = nn.Parameter(torch.empty(self.num_nodes, self.spatial_embedding_dim))
         nn.init.xavier_uniform_(self.spatial_embedding)
         
-        # 自适应嵌入
+        # 初始化自适应嵌入
         if self.adaptive_embedding_dim > 0:
             self.adaptive_embedding = nn.Parameter(
                 torch.empty(self.input_window, self.num_nodes, self.adaptive_embedding_dim)
             )
             nn.init.xavier_uniform_(self.adaptive_embedding)
         
-        # Mamba 参数
+        # 从配置中获取Mamba特定参数
         self.d_model = config.get('d_model', 96)
         self.d_state = config.get('d_state', 32)
         self.d_conv = config.get('d_conv', 4)
         self.expand = config.get('expand', 2)
         self.dropout = config.get('dropout', 0.1)
         
-        # 输入投影到 Mamba 维度
+        # 输入投影到Mamba维度
         self.mamba_input_proj = nn.Linear(self.model_dim, self.d_model)
         
-        # 天气数据处理器
-        self.weather_processor = None
-        if self.use_weather:
-            self._setup_weather_processor()
-        
-        # 天气特征嵌入层
-        if self.use_weather and self.weather_processor is not None:
-            self.weather_feature_proj = nn.Sequential(
-                nn.Linear(self.weather_processor.num_weather_features, self.weather_embed_dim * 2),
-                nn.ReLU(),
-                nn.Dropout(self.dropout),
-                nn.Linear(self.weather_embed_dim * 2, self.weather_embed_dim)
-            )
-            # 为每个节点复制天气嵌入
-            self.weather_spatial_expand = nn.Linear(self.weather_embed_dim, self.weather_embed_dim)
-        
-        # 时序处理块
-        self.temporal_block = SimpleMambaWeatherBlock(
+        # 仅使用两个Mamba块 - 一个用于时间处理，一个用于空间处理
+        self._logger.info("构建简化的MCSTMamba模型，仅包含两个Mamba块")
+
+        # 时间处理块
+        self.temporal_block = SimpleMambaBlock(
             d_model=self.d_model,
             d_state=self.d_state,
             d_conv=self.d_conv,
             expand=self.expand,
-            weather_embed_dim=self.weather_embed_dim,
             dropout=self.dropout
         )
         
         # 空间处理块
-        self.spatial_block = SimpleMambaWeatherBlock(
+        self.spatial_block = SimpleMambaBlock(
             d_model=self.d_model,
             d_state=self.d_state,
             d_conv=self.d_conv,
             expand=self.expand,
-            weather_embed_dim=self.weather_embed_dim,
             dropout=self.dropout
         )
         
-        # 融合模式配置
-        self.fusion_mode = config.get('fusion_mode', 'weighted')
-        
-        # 组合权重（用于 weighted 模式）
+        # 组合权重
         self.combine_weights = nn.Parameter(torch.randn(2, self.d_model))
         
-        # 自适应融合模块（用于 adaptive 模式）
-        if self.fusion_mode == 'adaptive':
-            self.adaptive_fusion = AdaptiveFusion(self.d_model, self.dropout)
-        
-        # 时序投影：将 input_window 映射到 output_window
-        self.temporal_proj = nn.Linear(self.input_window, self.output_window)
-        
-        # 输出投影
+        # 输出投影层
         self.output_proj = nn.Linear(self.d_model, self.output_dim)
         
         # 最终层归一化
         self.final_layer_norm = nn.LayerNorm(self.d_model)
         
-        # 预计算时间嵌入
-        self._precompute_time_embeddings()
-        
-        # 移动到设备
+        # 记录正在使用的设备
+        self._logger.info(f"简化的MCSTMamba模型配置用于设备: {self.device}")
+
+        # 将模型移动到设备
         self.to(self.device)
-        
-        self._logger.info(f"MambaWeather_Optimized model initialized with weather_embed_dim={self.weather_embed_dim}")
-    
+
+
     def _setup_weather_processor(self):
         """设置天气数据处理器"""
         # 尝试自动查找天气文件
@@ -393,7 +376,8 @@ class MambaWeather(AbstractTrafficStateModel):
         else:
             self._logger.warning(f"Weather file not found: {self.weather_file}")
             self.weather_processor = None
-    
+
+
     def _extract_timestamps_from_x(self, x):
         """
         从模型输入x中取出时间步对应数字，生成实际时间戳
@@ -426,20 +410,7 @@ class MambaWeather(AbstractTrafficStateModel):
                 timestamps.append(base_time + pd.Timedelta(minutes=int(idx * interval_minutes)))
         
         return timestamps
-    
-    def _precompute_time_embeddings(self):
-        """预计算时间嵌入索引"""
-        if self.add_time_in_day:
-            tod = torch.linspace(0, 0.99, self.input_window, device=self.device)
-            self.register_buffer('tod_indices', (tod * self.steps_per_day).long().clamp_(0, self.steps_per_day - 1))
-        else:
-            self.tod_indices = None
-        
-        if self.add_day_in_week:
-            dow = torch.arange(0, self.input_window, device=self.device) % 7
-            self.register_buffer('dow_indices', dow.long().clamp_(0, 6))
-        else:
-            self.dow_indices = None
+
     
     def _get_weather_embedding(self, batch_size, timestamps=None):
         """
@@ -490,645 +461,152 @@ class MambaWeather(AbstractTrafficStateModel):
         weather_embed = weather_embed.reshape(B, L, N, -1)
         
         return weather_embed
-    
+
+
     def forward(self, batch):
-        """
-        Args:
-            batch: Batch对象，包含 'X' 和其他特征
-        Returns:
-            预测结果: (batch_size, output_window, num_nodes, output_dim)
-        """
-        
-        # 获取输入
-        x = batch['X'].to(self.device)  # (B, input_window, num_nodes, feature_dim)
+        # 如有必要，将输入移动到设备
+        x = batch['X'].to(self.device)  # [batch_size, input_window, num_nodes, feature_dim]
         batch_size = x.shape[0]
-        
-        # 从x中提取时间戳（最后一列为时间步索引）
-        timestamps = self._extract_timestamps_from_x(x)
-        
-        # 去掉时间步列，恢复原始特征维度
-        if self.has_time_column:
-            x = x[..., :-1]
         
         # 特征提取
         features = []
         
-        # 主特征投影
-        x_main = self.input_proj(x)  # (B, L, N, input_embedding_dim)
+        # 处理主要特征
+        x_main = self.input_proj(x)  # [batch_size, input_window, num_nodes, input_embedding_dim]
         features.append(x_main)
         
-        # 时间嵌入
-        if self.add_time_in_day and self.tod_indices is not None:
-            tod_indices = self.tod_indices.unsqueeze(0).unsqueeze(-1).expand(batch_size, -1, self.num_nodes)
-            tod_emb = self.tod_embedding(tod_indices)
+        # 如需要，添加时间嵌入
+        if self.add_time_in_day:
+            # 基于序列位置创建归一化的一天中的时间（0-1）
+            # 这适用于任何数据集，无论特征维度如何
+            tod = torch.linspace(0, 0.99, self.input_window, device=self.device)
+            # 重塑为 [1, input_window, 1] 并扩展为 [batch_size, input_window, num_nodes]
+            tod = tod.reshape(1, -1, 1).expand(batch_size, -1, self.num_nodes)
+            
+            # 转换为索引，与原始实现完全相同
+            tod_indices = (tod * self.steps_per_day).long()
+            tod_indices = torch.clamp(tod_indices, 0, self.steps_per_day - 1)
+            tod_emb = self.tod_embedding(tod_indices)  # [batch_size, input_window, num_nodes, tod_embedding_dim]
             features.append(tod_emb)
-        
-        if self.add_day_in_week and self.dow_indices is not None:
-            dow_indices = self.dow_indices.unsqueeze(0).unsqueeze(-1).expand(batch_size, -1, self.num_nodes)
-            dow_emb = self.dow_embedding(dow_indices)
+            
+        if self.add_day_in_week:
+            # 基于序列位置创建一周中的天（0-6）
+            dow = torch.arange(0, self.input_window, device=self.device) % 7
+            # 重塑为 [1, input_window, 1] 并扩展为 [batch_size, input_window, num_nodes]
+            dow = dow.reshape(1, -1, 1).expand(batch_size, -1, self.num_nodes)
+            
+            # 转换为索引
+            dow_indices = dow.long()
+            dow_indices = torch.clamp(dow_indices, 0, 6)  # 限制在0-6范围内表示一周的天数
+            dow_emb = self.dow_embedding(dow_indices)  # [batch_size, input_window, num_nodes, dow_embedding_dim]
             features.append(dow_emb)
         
-        # 空间嵌入
-        spatial_emb = self.spatial_embedding.unsqueeze(0).unsqueeze(0).expand(batch_size, self.input_window, -1, -1)
+        # 添加空间嵌入
+        spatial_emb = self.spatial_embedding.unsqueeze(0).unsqueeze(0)  # [1, 1, num_nodes, spatial_dim]
+        spatial_emb = spatial_emb.expand(batch_size, self.input_window, -1, -1)
         features.append(spatial_emb)
         
-        # 自适应嵌入
+        # 如启用，添加自适应嵌入
         if self.adaptive_embedding_dim > 0:
-            adp_emb = self.adaptive_embedding.unsqueeze(0).expand(batch_size, -1, -1, -1)
+            adp_emb = self.adaptive_embedding.unsqueeze(0)  # [1, input_window, num_nodes, adaptive_dim]
+            adp_emb = adp_emb.expand(batch_size, -1, -1, -1)
             features.append(adp_emb)
-
-        # 获取天气嵌入 (B, L, N, weather_embed_dim)
-        weather_embed = self._get_weather_embedding(batch_size, timestamps)
         
-        # features.append(weather_embed)
+        # 连接所有特征
+        x = torch.cat(features, dim=-1)  # [batch_size, input_window, num_nodes, model_dim]
         
-        # 拼接所有特征
-        x = torch.cat(features, dim=-1)  # (B, L, N, model_dim)
+        # 投影到Mamba维度
+        x = self.mamba_input_proj(x)  # [batch_size, input_window, num_nodes, d_model]
         
-        # 投影到 Mamba 维度
-        x = self.mamba_input_proj(x)  # (B, L, N, d_model)
+        # 时间处理（独立处理每个节点）
+        x_temporal = x.permute(2, 0, 1, 3)  # [num_nodes, batch_size, input_window, d_model]
+        x_temporal = x_temporal.reshape(self.num_nodes, batch_size * self.input_window, -1)
         
-        # 时序处理：每个节点独立处理
-        # 重塑为 (N, B*L, d_model) 
-        x_temporal = x.permute(2, 0, 1, 3).reshape(self.num_nodes, batch_size * self.input_window, self.d_model)
+        # 通过时间块处理
         x_temporal = self.temporal_block(x_temporal)
+            
+        # 重塑回原形状
+        x_temporal = x_temporal.reshape(self.num_nodes, batch_size, self.input_window, self.d_model)
         
-        # 重塑回 (B, L, N, d_model)
-        x_temporal = x_temporal.reshape(self.num_nodes, batch_size, self.input_window, self.d_model).permute(1, 2, 0, 3)
+        # 空间处理 
+        is_large_dataset = self.num_nodes > 300
         
-        # # 空间处理
-        x_spatial = x.permute(1, 0, 2, 3)  # [input_window, batch_size, num_nodes, d_model]
-        x_spatial = x_spatial.reshape(self.input_window, batch_size * self.num_nodes, -1)
-        x_spatial = self.spatial_block(x_spatial)
-        x_spatial = x_spatial.reshape(self.input_window, batch_size, self.num_nodes, self.d_model).permute(1, 0, 2, 3)
-        
-        # 组合时序和空间输出
-        if self.fusion_mode == 'adaptive':
-            x_combined = self.adaptive_fusion(x, x_temporal, x_spatial)
+        if is_large_dataset and batch_size > 1:
+            # 对于大型数据集，使用GPU高效分块优化
+            # 直接在GPU上初始化输出张量
+            x_spatial = torch.zeros(self.input_window, batch_size, self.num_nodes, self.d_model, 
+                                    device=self.device)
+            
+            # 处理每个时间步
+            for t in range(self.input_window):
+                # 对于每个时间步，将节点视为序列: [batch_size, num_nodes, d_model]
+                nodes_seq = x[:, t, :, :]
+                
+                # 计算有效批次大小
+                effective_batch_size = 1
+                
+                # if t == 0:  # 仅记录一次
+                #     self._logger.info(f"空间处理使用有效批次大小 {effective_batch_size} "
+                #                    f"(数据集有 {self.num_nodes} 个节点)")
+                
+                # 处理批次
+                all_results = []
+                for b_idx in range(0, batch_size, effective_batch_size):
+                    end_idx = min(b_idx + effective_batch_size, batch_size)
+                    # 提取批次切片: [small_batch, num_nodes, d_model]
+                    batch_slice = nodes_seq[b_idx:end_idx]
+                    
+                    # 通过空间块处理
+                    spatial_hidden = self.spatial_block(batch_slice)
+                    
+                    all_results.append(spatial_hidden)
+                
+                # 合并结果
+                x_spatial[t] = torch.cat(all_results, dim=0)
         else:
-            x_combined = x_temporal * self.combine_weights[0] + x_spatial * self.combine_weights[1]
+            # 对于较小的数据集，一次性处理所有数据
+            x_spatial = x.permute(1, 0, 2, 3)  # [input_window, batch_size, num_nodes, d_model]
+            x_spatial = x_spatial.reshape(self.input_window, batch_size * self.num_nodes, -1)
+            
+            # 通过空间块处理
+            x_spatial = self.spatial_block(x_spatial)
+                
+            # 重塑回原形状
+            x_spatial = x_spatial.reshape(self.input_window, batch_size, self.num_nodes, self.d_model)
+        
+        # 组合时间和空间输出
+        x_combined = (x_temporal.permute(1, 2, 0, 3) * self.combine_weights[0] +
+                      x_spatial.permute(1, 0, 2, 3) * self.combine_weights[1])
         
         # 最终处理和输出投影
-        x_out = self.final_layer_norm(x_combined)  # (B, input_window, N, d_model)
-        x_out = self.output_proj(x_out)  # (B, input_window, N, output_dim)
-
-        # x_out = self.final_layer_norm(x_temporal)
-        # x_out = self.output_proj(x_out) 
+        x_out = self.final_layer_norm(x_combined)
+        x_out = self.output_proj(x_out)
         
-        # # 时序投影：将 input_window 映射到 output_window
-        # x_out = x_out.permute(0, 2, 3, 1)  # (B, N, output_dim, input_window)
-        # x_out = self.temporal_proj(x_out)  # (B, N, output_dim, output_window)
-        # x_out = x_out.permute(0, 3, 1, 2)  # (B, output_window, N, output_dim)
+        return x_out[:, -self.output_window:]  # 返回最后output_window步
 
-        return x_out  # 直接预测未来 output_window 步
-    
+
     def calculate_loss(self, batch):
-        """计算训练损失"""
-        y_true = batch['y']
-        if hasattr(y_true, 'to'):
-            y_true = y_true.to(self.device)
+        """
+        计算一批数据的训练损失
+        :param batch: 输入数据字典
+        :return: 训练损失（张量）
+        """
+        y_true = batch['y'].to(self.device)
         y_predicted = self.predict(batch)
         
-        # 反归一化
+        # 应用逆归一化
         y_true = self._scaler.inverse_transform(y_true[..., :self.output_dim])
         y_predicted = self._scaler.inverse_transform(y_predicted[..., :self.output_dim])
         
-        # 计算损失，使用MAE是因为同类型默认使用MAE
+        # 计算掩码MAE损失
         return loss.masked_mae_torch(y_predicted, y_true, 0)
 
-    def predict(self, batch):
-        return self.forward(batch)  # forward 直接输出未来预测
-
-
-class SimpleMamba(AbstractTrafficStateModel):
-    """
-    SimpleMamba: 仅使用 SimpleMambaWeatherBlock 作为模型的简化版
-    保留天气数据处理逻辑，但去除复杂的时序/空间分离、自适应融合等模块
-    """
-
-    def __init__(self, config, data_feature):
-        super().__init__(config, data_feature)
-
-        # 保存 config 供后续使用
-        self.config = config
-
-        # 基础数据特征
-        self._scaler = self.data_feature.get('scaler')
-        self.num_nodes = self.data_feature.get('num_nodes', 1)
-        self.feature_dim = self.data_feature.get('feature_dim', 1)
-        self.output_dim = self.data_feature.get('output_dim', 1)
-
-        # 时间相关特征（从 dataset 传入）
-        self.start_time = self.data_feature.get('start_time', None)
-        self.total_time_steps = self.data_feature.get('total_time_steps', None)
-        self.time_intervals = self.config.get('time_intervals', 300)
-        self.has_time_column = self.start_time is not None and self.total_time_steps is not None
-        if self.has_time_column:
-            # 输入特征中最后一列为时间步索引，需要去掉后再投影
-            self.feature_dim = self.feature_dim - 1
-
-        # 模型配置
-        self.input_window = config.get('input_window', 12)
-        self.output_window = config.get('output_window', 12)
-        self.device = config.get('device', torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'))
-        self._logger = getLogger()
-
-        # 时间特征配置
-        self.add_time_in_day = config.get("add_time_in_day", False)
-        self.add_day_in_week = config.get("add_day_in_week", False)
-        self.steps_per_day = config.get("steps_per_day", 288)
-
-        # 嵌入维度配置
-        self.input_embedding_dim = config.get('input_embedding_dim', 24)
-        self.tod_embedding_dim = config.get('tod_embedding_dim', 24) if self.add_time_in_day else 0
-        self.dow_embedding_dim = config.get('dow_embedding_dim', 24) if self.add_day_in_week else 0
-        self.spatial_embedding_dim = config.get('spatial_embedding_dim', 16)
-        self.adaptive_embedding_dim = config.get('adaptive_embedding_dim', 80)
-
-        # 天气相关配置
-        self.weather_embed_dim = config.get('weather_embed_dim', 64)
-        self.weather_file = config.get('weather_file', None)
-        self.use_weather = config.get('use_weather', True)
-
-        # 计算模型总维度（不含天气，天气单独处理）
-        self.model_dim = self.input_embedding_dim
-
-        # 创建嵌入层
-        self.input_proj = nn.Linear(self.feature_dim, self.input_embedding_dim)
-
-        if self.add_time_in_day:
-            self.tod_embedding = nn.Embedding(self.steps_per_day, self.tod_embedding_dim)
-        if self.add_day_in_week:
-            self.dow_embedding = nn.Embedding(7, self.dow_embedding_dim)
-
-        # 空间嵌入
-        self.spatial_embedding = nn.Parameter(torch.empty(self.num_nodes, self.spatial_embedding_dim))
-        nn.init.xavier_uniform_(self.spatial_embedding)
-
-        # 自适应嵌入
-        if self.adaptive_embedding_dim > 0:
-            self.adaptive_embedding = nn.Parameter(
-                torch.empty(self.input_window, self.num_nodes, self.adaptive_embedding_dim)
-            )
-            nn.init.xavier_uniform_(self.adaptive_embedding)
-
-        # Mamba 参数
-        self.d_model = config.get('d_model', 96)
-        self.d_state = config.get('d_state', 32)
-        self.d_conv = config.get('d_conv', 4)
-        self.expand = config.get('expand', 2)
-        self.dropout = config.get('dropout', 0.1)
-
-        # 输入投影到 Mamba 维度
-        self.mamba_input_proj = nn.Linear(self.model_dim, self.d_model)
-
-        # 天气数据处理器
-        self.weather_processor = None
-        if self.use_weather:
-            self._setup_weather_processor()
-
-        # 天气特征嵌入层
-        if self.use_weather and self.weather_processor is not None:
-            self.weather_feature_proj = nn.Sequential(
-                nn.Linear(self.weather_processor.num_weather_features, self.weather_embed_dim * 2),
-                nn.ReLU(),
-                nn.Dropout(self.dropout),
-                nn.Linear(self.weather_embed_dim * 2, self.weather_embed_dim)
-            )
-            # 为每个节点复制天气嵌入
-            self.weather_spatial_expand = nn.Linear(self.weather_embed_dim, self.weather_embed_dim)
-
-        # 仅使用一个 SimpleMambaWeatherBlock
-        self.mamba_block = SimpleMambaWeatherBlock(
-            d_model=self.d_model,
-            d_state=self.d_state,
-            d_conv=self.d_conv,
-            expand=self.expand,
-            weather_embed_dim=self.weather_embed_dim,
-            dropout=self.dropout
-        )
-
-        # 时序投影：将 input_window 映射到 output_window
-        self.temporal_proj = nn.Linear(self.input_window, self.output_window)
-
-        # 输出投影
-        self.output_proj = nn.Linear(self.d_model, self.output_dim)
-
-        # 最终层归一化
-        self.final_layer_norm = nn.LayerNorm(self.d_model)
-
-        # 预计算时间嵌入
-        self._precompute_time_embeddings()
-
-        # 移动到设备
-        self.to(self.device)
-
-        self._logger.info(f"SimpleMamba model initialized with weather_embed_dim={self.weather_embed_dim}")
-
-    def _setup_weather_processor(self):
-        """设置天气数据处理器"""
-        # 尝试自动查找天气文件
-        if self.weather_file is None:
-            dataset_name = self.config.get('dataset', 'METR_LA')
-            possible_paths = [
-                f'./raw_data/{dataset_name}/weather.csv',
-                f'./raw_data/weather/{dataset_name.lower()}_weather.csv',
-                f'./raw_data/weather/noaa_weather_5min.csv',
-            ]
-            for path in possible_paths:
-                if os.path.exists(path):
-                    self.weather_file = path
-                    break
-
-        if self.weather_file and os.path.exists(self.weather_file):
-            try:
-                self.weather_processor = WeatherProcessor(self.weather_file).load_data()
-                self.weather_processor.normalize_features()
-                self._logger.info(f"Weather data loaded from {self.weather_file}")
-                self._logger.info(f"Weather features: {self.weather_processor.feature_names}")
-            except Exception as e:
-                self._logger.warning(f"Failed to load weather data: {e}")
-                self.weather_processor = None
-        else:
-            self._logger.warning(f"Weather file not found: {self.weather_file}")
-            self.weather_processor = None
-
-    def _extract_timestamps_from_x(self, x):
-        """
-        从模型输入 x 中取出时间步对应数字，生成实际时间戳
-        Args:
-            x: (B, input_window, num_nodes, feature_dim) 包含时间步列
-        Returns:
-            list of pd.Timestamp or None
-        """
-        if not self.has_time_column:
-            return None
-
-        # 取出最后一个特征列（时间步索引），取第一个节点即可（所有节点相同）
-        time_indices = x[:, :, 0, -1].detach().cpu().numpy()  # (B, input_window)
-
-        # 如果有外部归一化器，对时间步索引进行反归一化
-        ext_scaler = self.data_feature.get('ext_scaler', None)
-        if ext_scaler is not None and hasattr(ext_scaler, 'inverse_transform'):
-            time_indices_flat = time_indices.reshape(-1, 1)
-            time_indices_flat = ext_scaler.inverse_transform(time_indices_flat)
-            time_indices = time_indices_flat.reshape(time_indices.shape)
-
-        time_indices = np.round(time_indices).astype(np.int64)
-
-        base_time = pd.Timestamp(self.start_time)
-        interval_minutes = self.time_intervals / 60.0
-
-        timestamps = []
-        for b in range(time_indices.shape[0]):
-            for idx in time_indices[b]:
-                timestamps.append(base_time + pd.Timedelta(minutes=int(idx * interval_minutes)))
-
-        return timestamps
-
-    def _precompute_time_embeddings(self):
-        """预计算时间嵌入索引"""
-        if self.add_time_in_day:
-            tod = torch.linspace(0, 0.99, self.input_window, device=self.device)
-            self.register_buffer('tod_indices', (tod * self.steps_per_day).long().clamp_(0, self.steps_per_day - 1))
-        else:
-            self.tod_indices = None
-
-        if self.add_day_in_week:
-            dow = torch.arange(0, self.input_window, device=self.device) % 7
-            self.register_buffer('dow_indices', dow.long().clamp_(0, 6))
-        else:
-            self.dow_indices = None
-
-    def _get_weather_embedding(self, batch_size, timestamps=None):
-        """
-        获取天气嵌入
-        Args:
-            batch_size: batch 大小
-            timestamps: 可选，具体的时间戳列表
-        Returns:
-            weather_embed: (batch_size, input_window, num_nodes, weather_embed_dim)
-        """
-        if not self.use_weather or self.weather_processor is None:
-            # 返回零向量
-            return torch.zeros(batch_size, self.input_window, self.num_nodes, self.weather_embed_dim, device=self.device)
-
-        # 如果没有提供 timestamps，生成默认时间序列（基于 input_window）
-        if timestamps is None:
-            time_indices = torch.arange(self.input_window, device=self.device)
-            base_time = pd.Timestamp('2012-03-01')  # METR_LA 默认起始时间
-            timestamps = [base_time + pd.Timedelta(minutes=int(i * 5)) for i in time_indices.cpu().numpy()]
-
-        # 获取天气特征
-        weather_features = self.weather_processor.get_features_at_timestamps(timestamps)
-        weather_tensor = torch.tensor(weather_features, dtype=torch.float32, device=self.device)
-
-        # 投影到嵌入维度
-        weather_embed = self.weather_feature_proj(weather_tensor)  # (num_timestamps, weather_embed_dim)
-
-        # 根据 timestamps 维度 reshape 并扩展到 batch 和 nodes 维度
-        if weather_embed.shape[0] == batch_size * self.input_window:
-            weather_embed = weather_embed.reshape(batch_size, self.input_window, self.weather_embed_dim)
-        elif weather_embed.shape[0] == self.input_window:
-            weather_embed = weather_embed.unsqueeze(0).expand(batch_size, -1, -1)
-        else:
-            raise ValueError(f"Unexpected weather_embed shape after projection: {weather_embed.shape}, "
-                             f"expected ({batch_size * self.input_window}, {self.weather_embed_dim}) or "
-                             f"({self.input_window}, {self.weather_embed_dim})")
-        weather_embed = weather_embed.unsqueeze(2).expand(-1, -1, self.num_nodes, -1)  # (B, L, N, D_w)
-
-        # 空间扩展（为每个节点学习不同的天气影响）
-        B, L, N, D = weather_embed.shape
-        weather_embed = weather_embed.reshape(B * L * N, D)
-        weather_embed = self.weather_spatial_expand(weather_embed)
-        weather_embed = weather_embed.reshape(B, L, N, -1)
-
-        return weather_embed
-
-    def forward(self, batch):
-        """
-        前向传播
-        Args:
-            batch: Batch 对象，包含 'X' 和其他特征
-        Returns:
-            预测结果: (batch_size, output_window, num_nodes, output_dim)
-        """
-        # 获取输入
-        x = batch['X'].to(self.device)  # (B, input_window, num_nodes, feature_dim)
-        batch_size = x.shape[0]
-
-        # 从 x 中提取时间戳（最后一列为时间步索引）
-        timestamps = self._extract_timestamps_from_x(x)
-
-        # 去掉时间步列，恢复原始特征维度
-        if self.has_time_column:
-            x = x[..., :-1]
-
-        # 主特征投影
-        x = self.input_proj(x)  # (B, L, N, input_embedding_dim)
-
-        # 投影到 Mamba 维度
-        x = self.mamba_input_proj(x)  # (B, L, N, d_model)
-
-        # 获取天气嵌入 (B, L, N, weather_embed_dim)
-        weather_embed = self._get_weather_embedding(batch_size, timestamps)
-
-        # 时序处理：每个节点独立处理
-        # 重塑为 (N, B*L, d_model) 以便高效处理
-        x_reshaped = x.permute(2, 0, 1, 3).reshape(self.num_nodes, batch_size * self.input_window, self.d_model)
-        
-        # 天气嵌入也需要相应重塑
-        w_reshaped = weather_embed.permute(2, 0, 1, 3).reshape(self.num_nodes, batch_size * self.input_window, self.weather_embed_dim)
-
-        # 通过 SimpleMambaWeatherBlock
-        x_out = self.mamba_block(x_reshaped, w_reshaped)
-
-        # 重塑回 (B, L, N, d_model)
-        x_out = x_out.reshape(self.num_nodes, batch_size, self.input_window, self.d_model).permute(1, 2, 0, 3)
-
-        # 最终处理和输出投影
-        x_out = self.final_layer_norm(x_out)  # (B, input_window, N, d_model)
-        x_out = self.output_proj(x_out)  # (B, input_window, N, output_dim)
-
-        # 时序投影：将 input_window 映射到 output_window
-        x_out = x_out.permute(0, 2, 3, 1)  # (B, N, output_dim, input_window)
-        x_out = self.temporal_proj(x_out)  # (B, N, output_dim, output_window)
-        x_out = x_out.permute(0, 3, 1, 2)  # (B, output_window, N, output_dim)
-
-        return x_out
-
-    def calculate_loss(self, batch):
-        """计算训练损失"""
-        y_true = batch['y']
-        if hasattr(y_true, 'to'):
-            y_true = y_true.to(self.device)
-        y_predicted = self.predict(batch)
-
-        # 反归一化
-        y_true = self._scaler.inverse_transform(y_true[..., :self.output_dim])
-        y_predicted = self._scaler.inverse_transform(y_predicted[..., :self.output_dim])
-
-        # 计算损失，使用 MAE
-        return loss.masked_mae_torch(y_predicted, y_true, 0)
 
     def predict(self, batch):
         """
-        直接预测未来 output_window 步
-        Args:
-            batch: 包含 'X' 的 Batch 对象
-        Returns:
-            预测结果: (batch_size, output_window, num_nodes, output_dim)
+        对一批数据进行预测
+        :param batch: 输入数据字典
+        :return: 预测结果，形状为 [batch_size, output_window, num_nodes, output_dim]
         """
-        return self.forward(batch)  # forward 直接输出未来预测
-
-
-class SimpleMambaBlock(nn.Module):
-    """Simple Mamba block with layer normalization and residual connections"""
-
-    def __init__(self, d_model=96, d_state=32, d_conv=4, expand=2, dropout=0.1):
-        super().__init__()
-        self.layer_norm = nn.LayerNorm(d_model)
-        self.mamba = Mamba(
-            d_model=d_model,
-            d_state=d_state,
-            d_conv=d_conv,
-            expand=expand,
-        )
-        self.dropout = nn.Dropout(dropout)
-        self.feed_forward = nn.Sequential(
-            nn.Linear(d_model, d_model * 4),
-            nn.GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(d_model * 4, d_model)
-        )
-        self.ff_norm = nn.LayerNorm(d_model)
-        self.ff_dropout = nn.Dropout(dropout)
-
-    def forward(self, x):
-        """
-        Args:
-            x: (B, L, D) - 输入序列
-        """
-        # Mamba block with residual
-        residual = x
-        x = self.layer_norm(x)
-        x = self.mamba(x)
-        x = self.dropout(x)
-        x = x + residual
-
-        # Feed-forward with residual
-        residual = x
-        x = self.ff_norm(x)
-        x = self.feed_forward(x)
-        x = self.ff_dropout(x)
-        x = x + residual
-
-        return x
-
-
-class OnlyMamba(AbstractTrafficStateModel):
-    """
-    OnlyMamba: 结构与 SimpleMamba 一致，但完全移除天气数据，使用标准 Mamba 模块
-    """
-
-    def __init__(self, config, data_feature):
-        super().__init__(config, data_feature)
-
-        # 保存 config 供后续使用
-        self.config = config
-
-        # 基础数据特征
-        self._scaler = self.data_feature.get('scaler')
-        self.num_nodes = self.data_feature.get('num_nodes', 1)
-        self.feature_dim = self.data_feature.get('feature_dim', 1)
-        self.output_dim = self.data_feature.get('output_dim', 1)
-
-        # 时间相关特征（从 dataset 传入）
-        self.start_time = self.data_feature.get('start_time', None)
-        self.total_time_steps = self.data_feature.get('total_time_steps', None)
-        self.time_intervals = self.config.get('time_intervals', 300)
-        self.has_time_column = self.start_time is not None and self.total_time_steps is not None
-        if self.has_time_column:
-            # 输入特征中最后一列为时间步索引，需要去掉后再投影
-            self.feature_dim = self.feature_dim - 1
-
-        # 模型配置
-        self.input_window = config.get('input_window', 12)
-        self.output_window = config.get('output_window', 12)
-        self.device = config.get('device', torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'))
-        self._logger = getLogger()
-
-        # 时间特征配置
-        self.add_time_in_day = config.get("add_time_in_day", False)
-        self.add_day_in_week = config.get("add_day_in_week", False)
-        self.steps_per_day = config.get("steps_per_day", 288)
-
-        # 嵌入维度配置
-        self.input_embedding_dim = config.get('input_embedding_dim', 24)
-        self.tod_embedding_dim = config.get('tod_embedding_dim', 24) if self.add_time_in_day else 0
-        self.dow_embedding_dim = config.get('dow_embedding_dim', 24) if self.add_day_in_week else 0
-        self.spatial_embedding_dim = config.get('spatial_embedding_dim', 16)
-        self.adaptive_embedding_dim = config.get('adaptive_embedding_dim', 80)
-
-        # 计算模型总维度
-        self.model_dim = self.input_embedding_dim
-
-        # 创建嵌入层
-        self.input_proj = nn.Linear(self.feature_dim, self.input_embedding_dim)
-
-        if self.add_time_in_day:
-            self.tod_embedding = nn.Embedding(self.steps_per_day, self.tod_embedding_dim)
-        if self.add_day_in_week:
-            self.dow_embedding = nn.Embedding(7, self.dow_embedding_dim)
-
-        # 空间嵌入
-        self.spatial_embedding = nn.Parameter(torch.empty(self.num_nodes, self.spatial_embedding_dim))
-        nn.init.xavier_uniform_(self.spatial_embedding)
-
-        # 自适应嵌入
-        if self.adaptive_embedding_dim > 0:
-            self.adaptive_embedding = nn.Parameter(
-                torch.empty(self.input_window, self.num_nodes, self.adaptive_embedding_dim)
-            )
-            nn.init.xavier_uniform_(self.adaptive_embedding)
-
-        # Mamba 参数
-        self.d_model = config.get('d_model', 96)
-        self.d_state = config.get('d_state', 32)
-        self.d_conv = config.get('d_conv', 4)
-        self.expand = config.get('expand', 2)
-        self.dropout = config.get('dropout', 0.1)
-
-        # 输入投影到 Mamba 维度
-        self.mamba_input_proj = nn.Linear(self.model_dim, self.d_model)
-
-        # 仅使用一个 SimpleMambaBlock（标准 Mamba，无天气）
-        self.mamba_block = SimpleMambaBlock(
-            d_model=self.d_model,
-            d_state=self.d_state,
-            d_conv=self.d_conv,
-            expand=self.expand,
-            dropout=self.dropout
-        )
-
-        # 时序投影：将 input_window 映射到 output_window
-        self.temporal_proj = nn.Linear(self.input_window, self.output_window)
-
-        # 输出投影
-        self.output_proj = nn.Linear(self.d_model, self.output_dim)
-
-        # 最终层归一化
-        self.final_layer_norm = nn.LayerNorm(self.d_model)
-
-        # 移动到设备
-        self.to(self.device)
-
-        self._logger.info(f"OnlyMamba model initialized (no weather, standard Mamba)")
-
-    def forward(self, batch):
-        """
-        前向传播
-        Args:
-            batch: Batch 对象，包含 'X' 和其他特征
-        Returns:
-            预测结果: (batch_size, output_window, num_nodes, output_dim)
-        """
-        # 获取输入
-        x = batch['X'].to(self.device)  # (B, input_window, num_nodes, feature_dim)
-        batch_size = x.shape[0]
-
-        # 去掉时间步列，恢复原始特征维度
-        if self.has_time_column:
-            x = x[..., :-1]
-
-        # 主特征投影
-        x = self.input_proj(x)  # (B, L, N, input_embedding_dim)
-
-        # 投影到 Mamba 维度
-        x = self.mamba_input_proj(x)  # (B, L, N, d_model)
-
-        # 时序处理：每个节点独立处理
-        # 重塑为 (N, B*L, d_model) 以便高效处理
-        x_reshaped = x.permute(2, 0, 1, 3).reshape(self.num_nodes, batch_size * self.input_window, self.d_model)
-
-        # 通过 SimpleMambaBlock（标准 Mamba，无天气数据）
-        x_out = self.mamba_block(x_reshaped)
-
-        # 重塑回 (B, L, N, d_model)
-        x_out = x_out.reshape(self.num_nodes, batch_size, self.input_window, self.d_model).permute(1, 2, 0, 3)
-
-        # 最终处理和输出投影
-        x_out = self.final_layer_norm(x_out)  # (B, input_window, N, d_model)
-        x_out = self.output_proj(x_out)  # (B, input_window, N, output_dim)
-
-        # 时序投影：将 input_window 映射到 output_window
-        x_out = x_out.permute(0, 2, 3, 1)  # (B, N, output_dim, input_window)
-        x_out = self.temporal_proj(x_out)  # (B, N, output_dim, output_window)
-        x_out = x_out.permute(0, 3, 1, 2)  # (B, output_window, N, output_dim)
-
-        return x_out
-
-    def calculate_loss(self, batch):
-        """计算训练损失"""
-        y_true = batch['y']
-        if hasattr(y_true, 'to'):
-            y_true = y_true.to(self.device)
-        y_predicted = self.predict(batch)
-
-        # 反归一化
-        y_true = self._scaler.inverse_transform(y_true[..., :self.output_dim])
-        y_predicted = self._scaler.inverse_transform(y_predicted[..., :self.output_dim])
-
-        # 计算损失，使用 MAE
-        return loss.masked_mae_torch(y_predicted, y_true, 0)
-
-    def predict(self, batch):
-        """
-        直接预测未来 output_window 步
-        Args:
-            batch: 包含 'X' 的 Batch 对象
-        Returns:
-            预测结果: (batch_size, output_window, num_nodes, output_dim)
-        """
-        return self.forward(batch)  # forward 直接输出未来预测
+        return self.forward(batch)
 

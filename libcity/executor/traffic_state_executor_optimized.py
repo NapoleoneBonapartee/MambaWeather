@@ -99,6 +99,10 @@ class TrafficStateExecutorOptimized(TrafficStateExecutor):
         # 使用预加载的 GPU 数据（零拷贝，无需 DataLoader）
         data_source = self.gpu_train_data if self.gpu_train_data is not None else train_dataloader
         
+        # 每 epoch 对预加载的训练数据做 shuffle，恢复随机性（仅重排列表引用，零数据拷贝）
+        if data_source is self.gpu_train_data:
+            random.shuffle(data_source)
+        
         # Zero gradients at the beginning
         self.optimizer.zero_grad(set_to_none=True)
         
@@ -113,7 +117,6 @@ class TrafficStateExecutorOptimized(TrafficStateExecutor):
             
             # Use autocast for mixed precision
             with get_autocast_context(self.fp16):
-                # batch.to_tensor(self.device)  # 已注释：预加载数据已在 GPU
                 loss = loss_func(batch)
                 
                 # Normalize loss by accumulation steps

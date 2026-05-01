@@ -26,8 +26,10 @@ from libcity.model.traffic_speed_prediction.TESTAM import TESTAM
 from libcity.model.traffic_speed_prediction.MegaCRN import MegaCRN
 from libcity.model.traffic_speed_prediction.MambaWeatherBlock import MambaWeatherBlock, SimpleMambaWeatherBlock
 from libcity.model.traffic_speed_prediction.MambaWeather import MambaWeather, SimpleMamba, OnlyMamba
+from libcity.model.traffic_speed_prediction.MCSTMamba import MCSTMamba
 
 __all__ = [
+    "MCSTMamba",
     "OnlyMamba",
     "SimpleMamba",
     "MambaWeatherBlock",

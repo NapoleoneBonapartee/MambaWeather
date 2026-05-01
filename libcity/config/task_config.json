@@ -183,7 +183,8 @@
             "Mamba",
             "MCSTMamba",
             "SimpleMamba",
-            "OnlyMamba"
+            "OnlyMamba",
+            "MCSTMamba"
         ],
         "allowed_dataset": [
             "METR_LA",
@@ -226,6 +227,11 @@
             "CHICAGO_RISK",
             "NYCTAXI20140112_FLOW"
         ],
+        "MCSTMamba": {
+            "dataset_class": "TrafficStatePointDataset",
+            "executor": "TrafficStateExecutorOptimized",
+            "evaluator": "TrafficStateEvaluator"
+        },
         "STGCN": {
             "dataset_class": "TrafficStatePointDataset",
             "executor": "TrafficStateExecutorOptimized",
