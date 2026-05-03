@@ -263,9 +263,6 @@ class MambaWeather(AbstractTrafficStateModel):
                 nn.ReLU(),
                 nn.Dropout(self.dropout)
             )
-            # Step 2：时序/空间入口调制——天气分别调制时序和空间输入
-            self.weather_to_temporal = nn.Linear(self.weather_embed_dim, self.d_model)
-            self.weather_to_spatial = nn.Linear(self.weather_embed_dim, self.d_model)
         
         # 计算模型维度（总嵌入大小）
         self.model_dim = (
@@ -275,8 +272,6 @@ class MambaWeather(AbstractTrafficStateModel):
             self.spatial_embedding_dim +
             self.adaptive_embedding_dim
         )
-        if self.use_weather:
-            self.model_dim += self.weather_embed_dim
         
         # 创建嵌入层
         self.input_proj = nn.Linear(self.feature_dim, self.input_embedding_dim)
@@ -311,6 +306,14 @@ class MambaWeather(AbstractTrafficStateModel):
             expand=self.expand,
             dropout=self.dropout
         )
+
+        # 时间双向融合模块（将前向+后向Mamba输出融合回d_model维度）
+        self.temporal_fusion = nn.Sequential(
+            nn.Linear(2 * self.d_model, self.d_model),
+            nn.LayerNorm(self.d_model),
+            nn.GELU(),
+            nn.Dropout(self.dropout)
+        )
         
         # 空间处理块
         self.spatial_block = SimpleMambaBlock(
@@ -321,8 +324,17 @@ class MambaWeather(AbstractTrafficStateModel):
             dropout=self.dropout
         )
         
-        # 组合权重
-        self.combine_weights = nn.Parameter(torch.randn(2, self.d_model))
+        # 组合权重（动态门控或静态权重）
+        if self.use_weather:
+            # 输入：输入 + 天气嵌入 -> 输出：门控信号 (0~1)
+            self.fusion_gate = nn.Sequential(
+                nn.Linear(self.d_model + self.weather_embed_dim, self.d_model),
+                nn.LayerNorm(self.d_model),
+                nn.Sigmoid()
+            )
+        else:
+            # 保留原版静态权重，供不使用天气时回退
+            self.combine_weights = nn.Parameter(torch.randn(2, self.d_model))
         
         # 输出投影层
         self.output_proj = nn.Linear(self.d_model, self.output_dim)
@@ -330,6 +342,21 @@ class MambaWeather(AbstractTrafficStateModel):
         # 最终层归一化
         self.final_layer_norm = nn.LayerNorm(self.d_model)
         
+        # Step 2 改进：条件天气偏置层
+        if self.use_weather:
+            self.x_to_weather_coeff_t = nn.Linear(self.d_model, self.weather_embed_dim)
+            self.x_to_weather_coeff_s = nn.Linear(self.d_model, self.weather_embed_dim)
+            self.weather_bias_proj_t = nn.Linear(self.weather_embed_dim, self.d_model)
+            self.weather_bias_proj_s = nn.Linear(self.weather_embed_dim, self.d_model)
+            self.add_gate_t = nn.Sequential(
+                nn.Linear(self.d_model, self.d_model),
+                nn.Sigmoid()
+            )
+            self.add_gate_s = nn.Sequential(
+                nn.Linear(self.d_model, self.d_model),
+                nn.Sigmoid()
+            )
+
         # 记录正在使用的设备
         self._logger.info(f"简化的MCSTMamba模型配置用于设备: {self.device}")
 
@@ -483,9 +510,9 @@ class MambaWeather(AbstractTrafficStateModel):
             adp_emb = adp_emb.expand(batch_size, -1, -1, -1)
             features.append(adp_emb)
 
+        weather_embed = None
         if self.use_weather:
             weather_embed = self._get_weather_embedding(batch_size, timestamps)
-            features.append(weather_embed)
         
         # 连接所有特征
         x = torch.cat(features, dim=-1)  # [batch_size, input_window, num_nodes, model_dim]
@@ -493,29 +520,46 @@ class MambaWeather(AbstractTrafficStateModel):
         # 投影到Mamba维度
         x = self.mamba_input_proj(x)  # [batch_size, input_window, num_nodes, d_model]
         
-        # ==================== Step 2：双路入口调制 ====================
-        if self.use_weather:
-            # 为时序和空间分别生成调制偏置
-            w_t = self.weather_to_temporal(weather_embed)  # (B, L, N, d_model)
-            w_s = self.weather_to_spatial(weather_embed)   # (B, L, N, d_model)
+        # Step 2 改进：条件天气偏置
+        if weather_embed is not None:
+            # 时序分支
+            coeff_t = torch.tanh(self.x_to_weather_coeff_t(x))
+            modulated_w_t = coeff_t * weather_embed
+            bias_t = self.weather_bias_proj_t(modulated_w_t)
+            gate_t = self.add_gate_t(x)
+            x_for_temporal = x + gate_t * bias_t
             
-            # 加法注入：让天气影响"如何看待输入"，但不替换输入
-            x_for_temporal = x + w_t
-            x_for_spatial = x + w_s
+            # 空间分支
+            coeff_s = torch.tanh(self.x_to_weather_coeff_s(x))
+            modulated_w_s = coeff_s * weather_embed
+            bias_s = self.weather_bias_proj_s(modulated_w_s)
+            gate_s = self.add_gate_s(x)
+            x_for_spatial = x + gate_s * bias_s
         else:
             x_for_temporal = x
             x_for_spatial = x
+        
         # =============================================================
         
-        # 时间处理（独立处理每个节点）
-        x_temporal = x_for_temporal.permute(2, 0, 1, 3)  # [num_nodes, batch_size, input_window, d_model]
-        x_temporal = x_temporal.reshape(self.num_nodes, batch_size * self.input_window, -1)
+        # 时间处理（独立处理每个节点）- 双向Mamba
+        # Forward Mamba
+        x_temporal_fw = x_for_temporal.permute(2, 0, 1, 3)  # [num_nodes, batch_size, input_window, d_model]
+        x_temporal_fw = x_temporal_fw.reshape(self.num_nodes, batch_size * self.input_window, self.d_model)
+        x_temporal_fw = self.temporal_block(x_temporal_fw)
+        x_temporal_fw = x_temporal_fw.reshape(self.num_nodes, batch_size, self.input_window, self.d_model)
         
-        # 通过时间块处理
-        x_temporal = self.temporal_block(x_temporal)
-            
-        # 重塑回原形状
-        x_temporal = x_temporal.reshape(self.num_nodes, batch_size, self.input_window, self.d_model)
+        # Backward Mamba（时间反向）
+        x_temporal_bw = x_for_temporal.flip(dims=[1])  # [batch_size, input_window, num_nodes, d_model] 反向时间
+        x_temporal_bw = x_temporal_bw.permute(2, 0, 1, 3)  # [num_nodes, batch_size, input_window, d_model]
+        x_temporal_bw = x_temporal_bw.reshape(self.num_nodes, batch_size * self.input_window, self.d_model)
+        x_temporal_bw = self.temporal_block(x_temporal_bw)
+        x_temporal_bw = x_temporal_bw.reshape(self.num_nodes, batch_size, self.input_window, self.d_model)
+        x_temporal_bw = x_temporal_bw.flip(dims=[2])  # 将时间维度翻转回原始顺序
+        
+        # 拼接前向和后向，融合回原始维度
+        x_temporal = torch.cat([x_temporal_fw, x_temporal_bw], dim=-1)  # [num_nodes, batch_size, input_window, 2*d_model]
+        x_temporal = self.temporal_fusion(x_temporal)  # [num_nodes, batch_size, input_window, d_model]
+        
         
         # 空间处理 
         is_large_dataset = self.num_nodes > 300
@@ -564,8 +608,20 @@ class MambaWeather(AbstractTrafficStateModel):
             x_spatial = x_spatial.reshape(self.input_window, batch_size, self.num_nodes, self.d_model)
         
         # 组合时间和空间输出
-        x_combined = (x_temporal.permute(1, 2, 0, 3) * self.combine_weights[0] +
-                      x_spatial.permute(1, 0, 2, 3) * self.combine_weights[1])
+        x_t = x_temporal.permute(1, 2, 0, 3)   # (B, L, N, d_model)
+        x_s = x_spatial.permute(1, 0, 2, 3)    # (B, L, N, d_model)
+        
+        #门控融合
+        if self.use_weather and weather_embed is not None:
+            # 拼接时序输出、空间输出、天气上下文
+            gate_input = torch.cat([x, weather_embed], dim=-1)
+            gate = self.fusion_gate(gate_input)  # (B, L, N, d_model), 每个维度独立门控
+            
+            # gate -> 1 偏好时序，gate -> 0 偏好空间
+            x_combined = gate * x_t + (1.0 - gate) * x_s
+        else:
+            # 回退到静态加权（与原版MCST一致）
+            x_combined = x_t * self.combine_weights[0] + x_s * self.combine_weights[1]
         
         # 最终处理和输出投影
         x_out = self.final_layer_norm(x_combined)

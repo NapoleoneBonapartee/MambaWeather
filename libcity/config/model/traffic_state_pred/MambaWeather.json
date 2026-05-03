@@ -28,7 +28,7 @@
     "timestamp": true,
     "weather_embed_dim": 32,
     "load_external": true,
-    "scaler": "stantard"
+    "scaler": "standard"
 
 
 }

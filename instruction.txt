@@ -6,3 +6,11 @@ python run_model.py --task traffic_state_pred --model MCSTMamba --dataset METR_L
 python run_model.py --task traffic_state_pred --model MCSTMamba --dataset METR_LA --exp_id MCST_Op
 python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id Mamba_Op
 python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id Mamba_Op2.8
+python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id Mamba_Op2.9
+python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id Mamba_Op2.10
+python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id Mamba_Op2.13
+python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id Mamba_Op2.15
+python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id Mamba_Op2.16
+python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id Mamba_Op2.17
+python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id Mamba_Op2.18
+python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id Mamba_Op2.19
