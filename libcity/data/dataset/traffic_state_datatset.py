@@ -321,6 +321,7 @@ class TrafficStateDataset(AbstractDataset):
             self.timesolts = np.array(self.timesolts, dtype='datetime64[ns]')
             for idx, _ts in enumerate(self.timesolts):
                 self.idx_of_timesolts[_ts] = idx
+                
         # 转3-d数组
         feature_dim = len(dynafile.columns) - 2
         df = dynafile[dynafile.columns[-feature_dim:]]
@@ -331,12 +332,17 @@ class TrafficStateDataset(AbstractDataset):
         data = np.array(data, dtype=np.float64)  # (len(self.geo_ids), len_time, feature_dim)
         data = data.swapaxes(0, 1)  # (len_time, len(self.geo_ids), feature_dim)
 
+        # 在特征列后增加节点索引列
+        node_indices = np.arange(data.shape[1]).reshape(1, data.shape[1], 1)
+        node_indices = np.tile(node_indices, (len_time, 1, 1))
+        data = np.concatenate([data, node_indices], axis=-1)  # (len_time, num_nodes, feature_dim+1)
+
         # 在特征列后增加时间步索引列
         time_indices = np.arange(len_time).reshape(len_time, 1, 1)
         time_indices = np.tile(time_indices, (1, data.shape[1], 1))
-        data = np.concatenate([data, time_indices], axis=-1)  # (len_time, num_nodes, feature_dim+1)
+        data = np.concatenate([data, time_indices], axis=-1)  # (len_time, num_nodes, feature_dim+2)
         
-        self._logger.info("Loaded file " + filename + '.dyna' + ', shape=' + str(data.shape) + ', 带有时间索引列')
+        self._logger.info("Loaded file " + filename + '.dyna' + ', shape=' + str(data.shape) + ', 带有节点索引和时间索引列')
         return data
 
     def _load_grid_3d(self, filename):

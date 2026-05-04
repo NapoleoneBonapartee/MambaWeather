@@ -241,10 +241,11 @@ class MambaWeather(AbstractTrafficStateModel):
         self.time_intervals = self.config.get('time_intervals', 300)
         self.has_time_column = self.start_time is not None and self.total_time_steps is not None
         if self.has_time_column:
-            # 输入特征中最后一列为时间步索引，需要去掉后再投影
-            self.feature_dim = self.feature_dim - 3
+            # 输入特征中包含节点索引、时间步索引、时间嵌入和星期嵌入，需要去掉后再投影
+            self.feature_dim = self.feature_dim - 4
         else:
-            self.feature_dim = self.feature_dim - 2
+            # 输入特征中包含节点索引、时间嵌入和星期嵌入，需要去掉后再投影
+            self.feature_dim = self.feature_dim - 3
 
         # 天气相关配置
         self.weather_embed_dim = config.get('weather_embed_dim', 64)
@@ -281,9 +282,8 @@ class MambaWeather(AbstractTrafficStateModel):
         if self.add_day_in_week:
             self.dow_embedding = nn.Embedding(7, self.dow_embedding_dim)
         
-        # 初始化空间嵌入
-        self.spatial_embedding = nn.Parameter(torch.empty(self.num_nodes, self.spatial_embedding_dim))
-        nn.init.xavier_uniform_(self.spatial_embedding)
+        # 初始化节点身份嵌入（可学习）
+        self.node_identity_embedding = nn.Embedding(self.num_nodes, self.spatial_embedding_dim)
         
         # 初始化自适应嵌入
         if self.adaptive_embedding_dim > 0:
@@ -476,13 +476,12 @@ class MambaWeather(AbstractTrafficStateModel):
         # 从x中提取时间戳（最后一列为时间步索引）
         if self.use_weather:
             timestamps = self._extract_timestamps_from_x(x)
-            temp = x[...,-3:]
-            x = x[...,:-3]
+            temp = x[...,-4:]  # [node_index, time_index, tod, dow]
+            x = x[...,:-4]
         else:
-            temp = x[...,-2:]
-            x = x[...,:-2]
+            temp = x[...,-3:]  # [node_index, tod, dow]
+            x = x[...,:-3]
             
-        
         # 处理主要特征
         x_main = self.input_proj(x)  # [batch_size, input_window, num_nodes, input_embedding_dim]
         features.append(x_main)
@@ -499,10 +498,10 @@ class MambaWeather(AbstractTrafficStateModel):
             dow_emb = self.dow_embedding(dow_indices)  # [batch_size, input_window, num_nodes, dow_embedding_dim]
             features.append(dow_emb)
         
-        # 添加空间嵌入
-        spatial_emb = self.spatial_embedding.unsqueeze(0).unsqueeze(0)  # [1, 1, num_nodes, spatial_dim]
-        spatial_emb = spatial_emb.expand(batch_size, self.input_window, -1, -1)
-        features.append(spatial_emb)
+        # 添加节点身份嵌入
+        node_indices = temp[..., -4].long()  # [B, L, N, 1]
+        node_emb = self.node_identity_embedding(node_indices)  # [B, L, N, spatial_dim]
+        features.append(node_emb)
         
         # 如启用，添加自适应嵌入
         if self.adaptive_embedding_dim > 0:
@@ -520,7 +519,7 @@ class MambaWeather(AbstractTrafficStateModel):
         # 投影到Mamba维度
         x = self.mamba_input_proj(x)  # [batch_size, input_window, num_nodes, d_model]
         
-        # Step 2 改进：条件天气偏置
+        # 条件天气偏置
         if weather_embed is not None:
             # 时序分支
             coeff_t = torch.tanh(self.x_to_weather_coeff_t(x))
@@ -538,8 +537,6 @@ class MambaWeather(AbstractTrafficStateModel):
         else:
             x_for_temporal = x
             x_for_spatial = x
-        
-        # =============================================================
         
         # 时间处理（独立处理每个节点）- 双向Mamba
         # Forward Mamba
