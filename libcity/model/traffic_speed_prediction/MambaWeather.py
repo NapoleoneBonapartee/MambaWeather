@@ -476,6 +476,8 @@ class MambaWeather(AbstractTrafficStateModel):
         # 从x中提取时间戳（最后一列为时间步索引）
         if self.use_weather:
             timestamps = self._extract_timestamps_from_x(x)
+        
+        if self.has_time_column:
             temp = x[...,-4:]  # [node_index, time_index, tod, dow]
             x = x[...,:-4]
         else:
