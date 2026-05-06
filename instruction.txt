@@ -16,3 +16,6 @@ python run_model.py --task traffic_state_pred --model MambaWeather --dataset MET
 python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id Mamba_Op2.19
 python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id Mamba_Op3.13
 python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id M-Weather
+python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id M-Back
+python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id M-Gate
+python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id M-WInfution
