@@ -270,7 +270,6 @@ class MambaWeather(AbstractTrafficStateModel):
             self.input_embedding_dim +
             self.tod_embedding_dim +
             self.dow_embedding_dim +
-            self.spatial_embedding_dim +
             self.adaptive_embedding_dim
         )
 
@@ -285,8 +284,8 @@ class MambaWeather(AbstractTrafficStateModel):
         if self.add_day_in_week:
             self.dow_embedding = nn.Embedding(7, self.dow_embedding_dim)
         
-        # 初始化节点身份嵌入（可学习）
-        self.node_identity_embedding = nn.Embedding(self.num_nodes, self.spatial_embedding_dim)
+        # # 初始化节点身份嵌入（可学习）
+        # self.node_identity_embedding = nn.Embedding(self.num_nodes, self.spatial_embedding_dim)
         
         # 初始化自适应嵌入
         if self.adaptive_embedding_dim > 0:
@@ -327,17 +326,16 @@ class MambaWeather(AbstractTrafficStateModel):
             dropout=self.dropout
         )
         
-        # # 组合权重（动态门控或静态权重）
-        # if self.use_weather:
-        #     # 输入：输入 + 天气嵌入 -> 输出：门控信号 (0~1)
-        #     self.fusion_gate = nn.Sequential(
-        #         nn.Linear(self.d_model + self.weather_embed_dim, self.d_model),
-        #         nn.LayerNorm(self.d_model),
-        #         nn.Sigmoid()
-        #     )
-        # else:
-        #     # 保留原版静态权重，供不使用天气时回退
-        #     self.combine_weights = nn.Parameter(torch.randn(2, self.d_model))
+        # 组合权重（动态门控或静态权重）
+        if self.use_weather:
+            self.fusion_gate = nn.Sequential(
+                nn.Linear(self.d_model, self.d_model),
+                nn.LayerNorm(self.d_model),
+                nn.Sigmoid()
+            )
+        else:
+            # 保留原版静态权重，供不使用天气时回退
+            self.combine_weights = nn.Parameter(torch.randn(2, self.d_model))
 
         self.combine_weights = nn.Parameter(torch.randn(2, self.d_model))        
         
@@ -505,11 +503,6 @@ class MambaWeather(AbstractTrafficStateModel):
             dow_emb = self.dow_embedding(dow_indices)  # [batch_size, input_window, num_nodes, dow_embedding_dim]
             features.append(dow_emb)
         
-        # 添加节点身份嵌入
-        node_indices = temp[..., -4].long()  # [B, L, N, 1]
-        node_emb = self.node_identity_embedding(node_indices)  # [B, L, N, spatial_dim]
-        features.append(node_emb)
-        
         # 如启用，添加自适应嵌入
         if self.adaptive_embedding_dim > 0:
             adp_emb = self.adaptive_embedding.unsqueeze(0)  # [1, input_window, num_nodes, adaptive_dim]
@@ -526,25 +519,6 @@ class MambaWeather(AbstractTrafficStateModel):
         
         # 投影到Mamba维度
         x = self.mamba_input_proj(x)  # [batch_size, input_window, num_nodes, d_model]
-        
-        # # 条件天气偏置
-        # if weather_embed is not None:
-        #     # 时序分支
-        #     coeff_t = torch.tanh(self.x_to_weather_coeff_t(x))
-        #     modulated_w_t = coeff_t * weather_embed
-        #     bias_t = self.weather_bias_proj_t(modulated_w_t)
-        #     gate_t = self.add_gate_t(x)
-        #     x_for_temporal = x + gate_t * bias_t
-            
-        #     # 空间分支
-        #     coeff_s = torch.tanh(self.x_to_weather_coeff_s(x))
-        #     modulated_w_s = coeff_s * weather_embed
-        #     bias_s = self.weather_bias_proj_s(modulated_w_s)
-        #     gate_s = self.add_gate_s(x)
-        #     x_for_spatial = x + gate_s * bias_s
-        # else:
-        #     x_for_temporal = x
-        #     x_for_spatial = x
 
         x_for_temporal = x
         x_for_spatial = x
@@ -618,19 +592,17 @@ class MambaWeather(AbstractTrafficStateModel):
         x_t = x_temporal.permute(1, 2, 0, 3)   # (B, L, N, d_model)
         x_s = x_spatial.permute(1, 0, 2, 3)    # (B, L, N, d_model)
         
-        # #门控融合
-        # if self.use_weather and weather_embed is not None:
-        #     # 拼接时序输出、空间输出、天气上下文
-        #     gate_input = torch.cat([x, weather_embed], dim=-1)
-        #     gate = self.fusion_gate(gate_input)  # (B, L, N, d_model), 每个维度独立门控
+        #门控融合
+        if self.use_weather and weather_embed is not None:
+            # 拼接时序输出、空间输出、天气上下文
+            gate_input = torch.cat([x, weather_embed], dim=-1)
+            gate = self.fusion_gate(gate_input)  # (B, L, N, d_model), 每个维度独立门控
             
-        #     # gate -> 1 偏好时序，gate -> 0 偏好空间
-        #     x_combined = gate * x_t + (1.0 - gate) * x_s
-        # else:
-        #     # 回退到静态加权（与原版MCST一致）
-        #     x_combined = x_t * self.combine_weights[0] + x_s * self.combine_weights[1]
-        
-        x_combined = x_t * self.combine_weights[0] + x_s * self.combine_weights[1]
+            # gate -> 1 偏好时序，gate -> 0 偏好空间
+            x_combined = gate * x_t + (1.0 - gate) * x_s
+        else:
+            # 回退到静态加权（与原版MCST一致）
+            x_combined = x_t * self.combine_weights[0] + x_s * self.combine_weights[1]
 
         # 最终处理和输出投影
         x_out = self.final_layer_norm(x_combined)
