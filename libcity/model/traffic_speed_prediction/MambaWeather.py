@@ -268,8 +268,8 @@ class MambaWeather(AbstractTrafficStateModel):
         # 计算模型维度（总嵌入大小）
         self.model_dim = (
             self.input_embedding_dim +
-            self.tod_embedding_dim +
-            self.dow_embedding_dim +
+            # self.tod_embedding_dim +
+            # self.dow_embedding_dim +
             self.adaptive_embedding_dim
         )
 
@@ -491,17 +491,17 @@ class MambaWeather(AbstractTrafficStateModel):
         x_main = self.input_proj(x)  # [batch_size, input_window, num_nodes, input_embedding_dim]
         features.append(x_main)
         
-        # 如需要，添加时间嵌入
-        if self.add_time_in_day:
-            tod_indices = temp[..., -2].long()
-            tod_emb = self.tod_embedding(tod_indices)  # [batch_size, input_window, num_nodes, tod_embedding_dim]
-            features.append(tod_emb)
+        # # 如需要，添加时间嵌入
+        # if self.add_time_in_day:
+        #     tod_indices = temp[..., -2].long()
+        #     tod_emb = self.tod_embedding(tod_indices)  # [batch_size, input_window, num_nodes, tod_embedding_dim]
+        #     features.append(tod_emb)
             
-        if self.add_day_in_week:
-            # 基于序列位置创建一周中的天（0-6）
-            dow_indices = temp[..., -1].long()
-            dow_emb = self.dow_embedding(dow_indices)  # [batch_size, input_window, num_nodes, dow_embedding_dim]
-            features.append(dow_emb)
+        # if self.add_day_in_week:
+        #     # 基于序列位置创建一周中的天（0-6）
+        #     dow_indices = temp[..., -1].long()
+        #     dow_emb = self.dow_embedding(dow_indices)  # [batch_size, input_window, num_nodes, dow_embedding_dim]
+        #     features.append(dow_emb)
         
         # 如启用，添加自适应嵌入
         if self.adaptive_embedding_dim > 0:
