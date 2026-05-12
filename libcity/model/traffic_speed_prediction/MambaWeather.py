@@ -31,24 +31,33 @@ class WeatherProcessor:
         return self
     
     def _process_missing_values(self):
-        """处理缺失值：前向填充 + 后向填充"""
-        # 数值列：先线性插值，再前向填充，最后后向填充
-        numeric_cols = self.weather_df.select_dtypes(include=[np.number]).columns
+        """处理缺失值：丢弃高缺失率特征列，再前向填充 + 后向填充"""
+        # 数值列：先检查缺失率，再线性插值，最后前后向填充
+        numeric_cols = list(self.weather_df.select_dtypes(include=[np.number]).columns)
+        cols_to_drop = []
         
         for col in numeric_cols:
+            missing_ratio = self.weather_df[col].isna().mean()
+            if missing_ratio > 0.3:
+                cols_to_drop.append(col)
+                continue
+            
             # 线性插值
             self.weather_df[col] = self.weather_df[col].interpolate(method='linear', limit_direction='both')
             # 前向填充（处理开头的缺失值）
             self.weather_df[col] = self.weather_df[col].fillna(method='ffill')
             # 后向填充（处理末尾的缺失值）
             self.weather_df[col] = self.weather_df[col].fillna(method='bfill')
-            # 剩余缺失值用均值填充
-            self.weather_df[col] = self.weather_df[col].fillna(self.weather_df[col].mean())
+        
+        if cols_to_drop:
+            self.weather_df = self.weather_df.drop(columns=cols_to_drop)
         
         # 类别列：用众数填充
         categorical_cols = self.weather_df.select_dtypes(include=['object']).columns
         for col in categorical_cols:
-            self.weather_df[col] = self.weather_df[col].fillna(self.weather_df[col].mode()[0] if not self.weather_df[col].mode().empty else 0)
+            self.weather_df[col] = self.weather_df[col].fillna(
+                self.weather_df[col].mode()[0] if not self.weather_df[col].mode().empty else 0
+            )
     
     def _build_derived_features(self):
         """构建天气衍生特征"""
