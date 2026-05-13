@@ -168,7 +168,7 @@ class WeatherProcessor:
 
 
 
-class SimpleMambaBlock(nn.Module):
+class MambaWeatherBlock(nn.Module):
     def __init__(self, d_model, d_state, d_conv, expand, dropout=0.1):
         super().__init__()
         self.layer_norm = nn.LayerNorm(d_model)
@@ -277,8 +277,8 @@ class MambaWeather(AbstractTrafficStateModel):
         # 计算模型维度（总嵌入大小）
         self.model_dim = (
             self.input_embedding_dim +
-            # self.tod_embedding_dim +
-            # self.dow_embedding_dim +
+            self.tod_embedding_dim +
+            self.dow_embedding_dim +
             self.adaptive_embedding_dim
         )
 
@@ -310,7 +310,7 @@ class MambaWeather(AbstractTrafficStateModel):
         self._logger.info("构建简化的MCSTMamba模型，仅包含两个Mamba块")
 
         # 时间处理块
-        self.temporal_block = SimpleMambaBlock(
+        self.temporal_block = MambaWeatherBlock(
             d_model=self.d_model,
             d_state=self.d_state,
             d_conv=self.d_conv,
@@ -327,7 +327,7 @@ class MambaWeather(AbstractTrafficStateModel):
         )
         
         # 空间处理块
-        self.spatial_block = SimpleMambaBlock(
+        self.spatial_block = MambaWeatherBlock(
             d_model=self.d_model,
             d_state=self.d_state,
             d_conv=self.d_conv,
@@ -338,14 +338,12 @@ class MambaWeather(AbstractTrafficStateModel):
         # 组合权重（动态门控或静态权重）
         if self.use_weather:
             self.fusion_gate = nn.Sequential(
-                nn.Linear(self.d_model, self.d_model),
+                nn.Linear(self.d_model + self.weather_embed_dim, self.d_model),
                 nn.LayerNorm(self.d_model),
                 nn.Sigmoid()
             )
-        else:
-            # 保留原版静态权重，供不使用天气时回退
-            self.combine_weights = nn.Parameter(torch.randn(2, self.d_model))
-
+        
+        # 保留原版静态权重，供不使用天气时回退
         self.combine_weights = nn.Parameter(torch.randn(2, self.d_model))        
         
         # 输出投影层
@@ -353,6 +351,15 @@ class MambaWeather(AbstractTrafficStateModel):
         
         # 最终层归一化
         self.final_layer_norm = nn.LayerNorm(self.d_model)
+        
+        # 当 input_window < output_window 时，使用可学习的时间投影扩展时间维度
+        if self.input_window < self.output_window:
+            self.time_expand_proj = nn.Sequential(
+                nn.Linear(self.input_window, self.input_window * 2),
+                nn.ReLU(),
+                nn.Dropout(0.1),
+                nn.Linear(self.input_window * 2, self.output_window)
+            )
         
         # Step 2 改进：条件天气偏置层
         if self.use_weather:
@@ -500,17 +507,17 @@ class MambaWeather(AbstractTrafficStateModel):
         x_main = self.input_proj(x)  # [batch_size, input_window, num_nodes, input_embedding_dim]
         features.append(x_main)
         
-        # # 如需要，添加时间嵌入
-        # if self.add_time_in_day:
-        #     tod_indices = temp[..., -2].long()
-        #     tod_emb = self.tod_embedding(tod_indices)  # [batch_size, input_window, num_nodes, tod_embedding_dim]
-        #     features.append(tod_emb)
+        # 如需要，添加时间嵌入
+        if self.add_time_in_day:
+            tod_indices = temp[..., -2].long()
+            tod_emb = self.tod_embedding(tod_indices)  # [batch_size, input_window, num_nodes, tod_embedding_dim]
+            features.append(tod_emb)
             
-        # if self.add_day_in_week:
-        #     # 基于序列位置创建一周中的天（0-6）
-        #     dow_indices = temp[..., -1].long()
-        #     dow_emb = self.dow_embedding(dow_indices)  # [batch_size, input_window, num_nodes, dow_embedding_dim]
-        #     features.append(dow_emb)
+        if self.add_day_in_week:
+            # 基于序列位置创建一周中的天（0-6）
+            dow_indices = temp[..., -1].long()
+            dow_emb = self.dow_embedding(dow_indices)  # [batch_size, input_window, num_nodes, dow_embedding_dim]
+            features.append(dow_emb)
         
         # 如启用，添加自适应嵌入
         if self.adaptive_embedding_dim > 0:
@@ -617,7 +624,17 @@ class MambaWeather(AbstractTrafficStateModel):
         x_out = self.final_layer_norm(x_combined)
         x_out = self.output_proj(x_out)
         
-        return x_out[:, -self.output_window:]  # 返回最后output_window步
+        # 根据 input_window 和 output_window 的关系处理输出
+        if self.input_window == self.output_window:
+            return x_out
+        elif self.input_window > self.output_window:
+            return x_out[:, -self.output_window:]
+        else:
+            # input_window < output_window，使用可学习的时间投影扩展时间维度
+            x_out = x_out.permute(0, 2, 3, 1)  # (B, num_nodes, output_dim, input_window)
+            x_out = self.time_expand_proj(x_out)  # (B, num_nodes, output_dim, output_window)
+            x_out = x_out.permute(0, 3, 1, 2)  # (B, output_window, num_nodes, output_dim)
+            return x_out
 
 
     def calculate_loss(self, batch):

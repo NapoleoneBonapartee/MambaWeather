@@ -24,7 +24,7 @@
     "steps_per_day": 288,
     "dropout": 0.1,
 
-    "use_weather": false,
+    "use_weather": true,
     "timestamp": true,
     "weather_embed_dim": 32,
     "load_external": true,

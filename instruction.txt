@@ -23,3 +23,4 @@ python run_model.py --task traffic_state_pred --model MambaWeather --dataset MET
 python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id M-WInfution-Gate
 python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id M-WInfution-Weather
 python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id M-WInfution-time
+python run_model.py --task traffic_state_pred --model MambaWeather --dataset METR_LA --exp_id M-WInfution+SpatialOp
