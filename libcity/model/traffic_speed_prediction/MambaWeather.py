@@ -559,50 +559,14 @@ class MambaWeather(AbstractTrafficStateModel):
         x_temporal = self.temporal_fusion(x_temporal)  # [num_nodes, batch_size, input_window, d_model]
         
         # 空间处理 
-        is_large_dataset = self.num_nodes > 300
+        x_spatial = x_for_spatial.permute(1, 0, 2, 3)  # [input_window, batch_size, num_nodes, d_model]
+        x_spatial = x_spatial.reshape(self.input_window, batch_size * self.num_nodes, -1)
         
-        if is_large_dataset and batch_size > 1:
-            # 对于大型数据集，使用GPU高效分块优化
-            # 直接在GPU上初始化输出张量
-            x_spatial = torch.zeros(self.input_window, batch_size, self.num_nodes, self.d_model, 
-                                    device=self.device)
+        # 通过空间块处理
+        x_spatial = self.spatial_block(x_spatial)
             
-            # 处理每个时间步
-            for t in range(self.input_window):
-                # 对于每个时间步，将节点视为序列: [batch_size, num_nodes, d_model]
-                nodes_seq = x_for_spatial[:, t, :, :]
-                
-                # 计算有效批次大小
-                effective_batch_size = 1
-                
-                # if t == 0:  # 仅记录一次
-                #     self._logger.info(f"空间处理使用有效批次大小 {effective_batch_size} "
-                #                    f"(数据集有 {self.num_nodes} 个节点)")
-                
-                # 处理批次
-                all_results = []
-                for b_idx in range(0, batch_size, effective_batch_size):
-                    end_idx = min(b_idx + effective_batch_size, batch_size)
-                    # 提取批次切片: [small_batch, num_nodes, d_model]
-                    batch_slice = nodes_seq[b_idx:end_idx]
-                    
-                    # 通过空间块处理
-                    spatial_hidden = self.spatial_block(batch_slice)
-                    
-                    all_results.append(spatial_hidden)
-                
-                # 合并结果
-                x_spatial[t] = torch.cat(all_results, dim=0)
-        else:
-            # 对于较小的数据集，一次性处理所有数据
-            x_spatial = x_for_spatial.permute(1, 0, 2, 3)  # [input_window, batch_size, num_nodes, d_model]
-            x_spatial = x_spatial.reshape(self.input_window, batch_size * self.num_nodes, -1)
-            
-            # 通过空间块处理
-            x_spatial = self.spatial_block(x_spatial)
-                
-            # 重塑回原形状
-            x_spatial = x_spatial.reshape(self.input_window, batch_size, self.num_nodes, self.d_model)
+        # 重塑回原形状
+        x_spatial = x_spatial.reshape(self.input_window, batch_size, self.num_nodes, self.d_model)
         
         # 组合时间和空间输出
         x_t = x_temporal.permute(1, 2, 0, 3)   # (B, L, N, d_model)
